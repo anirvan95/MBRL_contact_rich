@@ -25,10 +25,10 @@ sudo apt-get install -y --no-install-recommends libnvinfer6=6.0.1-1+cuda10.1 \
     libnvinfer-plugin6=6.0.1-1+cuda10.1
 
 
-
-
 #Installing dependencies 
+
 cd pyPack/gym
 pip install -e .
-
+cd ..
+pip install -r requirements.txt
 
