@@ -10,7 +10,7 @@ from mpi4py import MPI
 from collections import deque
 from common.console_util import fmt_row
 from common.math_util import explained_variance
-
+import pickle
 
 def zipsame(*seqs):
     L = len(seqs[0])
@@ -18,7 +18,8 @@ def zipsame(*seqs):
     return zip(*seqs)
 
 
-def traj_segment_generator(pi, env, horizon=220, batch_size=25001, stochastic=True, render=False):
+def traj_segment_generator(pi, env, horizon=150, batch_size=12000, stochastic=True, render=False):
+    GOAL = np.array([0, 0.5])
     n_samples = 1
     ac = env.action_space.sample() # not used, just so we have the datatype
     new = True # marks if we're on first timestep of an episode
@@ -37,6 +38,12 @@ def traj_segment_generator(pi, env, horizon=220, batch_size=25001, stochastic=Tr
     acs = np.array([ac for _ in range(batch_size)])
     prevacs = acs.copy()
 
+    rollouts = []
+    observations = np.array([ob for _ in range(horizon)])
+    actions = np.array([ac for _ in range(horizon)])
+    rollout_num = 0
+    insertion = 0
+    new_rollout = True
     while n_samples < batch_size:
         prevac = ac
         ac, vpred = pi.act(stochastic, ob)
@@ -45,7 +52,7 @@ def traj_segment_generator(pi, env, horizon=220, batch_size=25001, stochastic=Tr
             env.render()
 
         obs[n_samples] = ob
-        vpreds[n_samples] = vpred
+        vpreds[n_samples] = vpred * (1 - new)
         news[n_samples] = new
         acs[n_samples] = ac
         prevacs[n_samples] = prevac
@@ -53,17 +60,33 @@ def traj_segment_generator(pi, env, horizon=220, batch_size=25001, stochastic=Tr
 
         cur_ep_ret += rew
         cur_ep_len += 1
-        if new or n_samples % horizon == 0:
+
+        observations[rollout_num] = ob
+        actions[rollout_num] = ac
+        rollout_num = rollout_num + 1
+
+        if rollout_num == horizon:
+            data = {'observations': observations, 'actions': actions}
+            rollouts.append(data)
+            rollout_num = 0
+
+        dist = ob[:2]-GOAL
+        if np.linalg.norm(dist) < 0.025 and new_rollout:
+            insertion = insertion+1
+            new_rollout = False
+
+        if new or (n_samples>0 and n_samples % horizon == 0):
             ep_rets.append(cur_ep_ret)
             ep_lens.append(cur_ep_len)
             cur_ep_ret = 0
             cur_ep_len = 0
             ob = env.reset()
             render = False
+            new_rollout = True
         n_samples += 1
 
-    print("\n Maximum Reward this batch: ", max(ep_rets)," \n")
-    return {"ob": obs, "rew": rews, "vpred": vpreds, "new": news, "ac": acs, "prevac": prevacs, "nextvpred": vpred * (1 - new), "ep_rets": ep_rets, "ep_lens": ep_lens}
+    seg = {"ob": obs, "rew": rews, "vpred": vpreds, "new": news, "ac": acs, "prevac": prevacs, "nextvpred": vpred * (1 - new), "ep_rets": ep_rets, "ep_lens": ep_lens, "success":insertion}
+    return seg, rollouts
 
 
 def add_vtarg_and_adv(seg, gamma, lam):
@@ -84,7 +107,7 @@ def add_vtarg_and_adv(seg, gamma, lam):
 
 
 def learn(env, policy_fn, *,
-        timesteps_per_actorbatch, # timesteps per actor per update
+        horizon, # timesteps per actor per update
         clip_param, entcoeff, # clipping parameter epsilon, entropy coeff
         optim_epochs, optim_stepsize, optim_batchsize,# optimization hypers
         gamma, lam, # advantage estimation
@@ -101,7 +124,6 @@ def learn(env, policy_fn, *,
     oldpi = policy_fn("oldpi", ob_space, ac_space) # Network for old policy
     atarg = tf.placeholder(dtype=tf.float32, shape=[None]) # Target advantage function (if applicable)
     ret = tf.placeholder(dtype=tf.float32, shape=[None]) # Empirical return
-
     lrmult = tf.placeholder(name='lrmult', dtype=tf.float32, shape=[]) # learning rate multiplier, updated with schedule
 
     ob = U.get_placeholder_cached(name="ob")
@@ -139,11 +161,11 @@ def learn(env, policy_fn, *,
     timesteps_so_far = 0
     iters_so_far = 0
     tstart = time.time()
-    lenbuffer = deque(maxlen=100) # rolling buffer for episode lengths
-    rewbuffer = deque(maxlen=100) # rolling buffer for episode rewards
+    lenbuffer = deque(maxlen=5) # rolling buffer for episode lengths
+    rewbuffer = deque(maxlen=5) # rolling buffer for episode rewards
 
     assert sum([max_iters>0, max_timesteps>0, max_episodes>0, max_seconds>0])==1, "Only one time constraint permitted"
-
+    p = [] #for saving the rollouts
     while True:
         if callback: callback(locals(), globals())
         if max_timesteps and timesteps_so_far >= max_timesteps:
@@ -163,14 +185,15 @@ def learn(env, policy_fn, *,
             raise NotImplementedError
 
         logger.log("********** Iteration %i ************"%iters_so_far)
-        if (iters_so_far>80):
-            seg = traj_segment_generator(pi, env, horizon=250, batch_size=21250, stochastic=True, render=True)
-        else:
-            seg = traj_segment_generator(pi, env, horizon=250, batch_size=21250, stochastic=True, render=False)
+
+        seg, rollouts = traj_segment_generator(pi, env, horizon=150, batch_size=12000, stochastic=True, render=False)
+        data = {'seg': seg, 'rollouts': rollouts}
+        p.append(data)
+        pickle.dump(p, open("model_learning.pkl", "wb"))
 
         add_vtarg_and_adv(seg, gamma, lam)
+        #TODO fix curltr 'linear'
 
-        # ob, ac, atarg, ret, td1ret = map(np.concatenate, (obs, acs, atargs, rets, td1rets))
         ob, ac, atarg, tdlamret = seg["ob"], seg["ac"], seg["adv"], seg["tdlamret"]
         vpredbefore = seg["vpred"] # predicted value function before udpate
         atarg = (atarg - atarg.mean()) / atarg.std() # standardized advantage function estimate
@@ -206,6 +229,7 @@ def learn(env, policy_fn, *,
         lens, rews = map(flatten_lists, zip(*listoflrpairs))
         lenbuffer.extend(lens)
         rewbuffer.extend(rews)
+        logger.record_tabular("SuccessInsertion", seg["success"])
         logger.record_tabular("EpLenMean", np.mean(lenbuffer))
         logger.record_tabular("EpRewMean", np.mean(rewbuffer))
         logger.record_tabular("EpThisIter", len(lens))

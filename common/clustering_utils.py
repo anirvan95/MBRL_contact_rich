@@ -4,13 +4,7 @@ import sys
 from math import sqrt
 import numpy as np
 from sklearn.cluster import DBSCAN
-
-
-def scale(X, x_min, x_max):
-    nom = (X - X.min(axis=0)) * (x_max - x_min)
-    denom = X.max(axis=0) - X.min(axis=0)
-    denom[denom == 0] = 1
-    return x_min + nom / denom
+from sklearn.preprocessing import StandardScaler
 
 
 def computeDistance(f1, f2):
@@ -109,7 +103,7 @@ def fitGaussianDistribution(traj, action, transitions):
     rmse = 0
     selectedSeg = []
     for k in range(0, nseg - 1):
-        if transitions[k + 1] - transitions[k] > 5:
+        if transitions[k + 1] - transitions[k] > 8:
             # ensuring at least one sample is there between two transition point
             x_t_1 = traj[(transitions[k] + 1):(transitions[k + 1] + 1), :]
             x_t = traj[transitions[k]:transitions[k + 1], :]
@@ -117,6 +111,7 @@ def fitGaussianDistribution(traj, action, transitions):
             feature_data_array = np.hstack((x_t, x_t_1))
             meanGaussian = np.mean(feature_data_array, axis=0)
             covGaussian = np.cov(feature_data_array, rowvar=0)
+            covGaussian = covGaussian + covGaussian.T
             covFeature = covGaussian.flatten()
             det = np.linalg.det(covGaussian)
             if np.linalg.cond(covGaussian) < 1 / sys.float_info.epsilon:
@@ -128,13 +123,18 @@ def fitGaussianDistribution(traj, action, transitions):
 
     return np.array(dynamicMat), np.array(selectedSeg)
 
-clustering_params = {
-    'per_train': 1,  # percentage of total rollouts to be trained
-    'window_size': 2, # window size of transition point clustering
-    'weight_prior': 0.05, # weight prior of DPGMM clustering for transition point
-    'DBeps': 3.0,   # DBSCAN noise parameter for clustering segments
-    'DBmin_samples': 2   # DBSCAN minimum cluster size parameter for clustering segments
-}
+
+def correctMode(segTraj, mode):
+    rectBox = [-0.15, 0.75, 0.4, 0.75]
+    points_in = 0
+    correctedMode = 0 # default mode
+    if mode > 0:
+        for t in range(0, len(segTraj)):
+            points_in = points_in + (rectBox[0] < segTraj[t, 0] < rectBox[0]+rectBox[2] and rectBox[1]-rectBox[3] < segTraj[t, 1] < rectBox[1])
+        if points_in > 0.6*len(segTraj):
+            correctedMode = mode
+
+    return correctedMode
 
 
 def hybridSegmentClustering(rollouts, clustering_params):
@@ -146,7 +146,13 @@ def hybridSegmentClustering(rollouts, clustering_params):
         traj = rollouts[rollout]
         states = traj['observations']
         action = traj['actions']
-        tp = identifyTransitions(states, clustering_params['window_size'], clustering_params['weight_prior'])
+        state_scaler = StandardScaler().fit(states)
+        state_std = state_scaler.transform(states)
+        time_vect = np.expand_dims(np.arange(0, len(states)), axis=1)
+        time_scaler = StandardScaler().fit(time_vect)
+        time_std = time_scaler.transform(time_vect)
+        feature_vect = np.hstack((time_std, state_std))
+        tp = identifyTransitions(state_std, clustering_params['window_size'], clustering_params['weight_prior'])
         # fitting Gaussian Dynamic model
         fittedModel, selTraj = fitGaussianDistribution(states[:, 0:2], action, tp)
         trajMat.append(np.array([rollout, selTraj]))
@@ -179,7 +185,10 @@ def hybridSegmentClustering(rollouts, clustering_params):
             segTraj = states[trajMat[rollout][1][segment][0]:(trajMat[rollout][1][segment][1] + 1), :]
             segAction = action[trajMat[rollout][1][segment][0]:(trajMat[rollout][1][segment][1] + 1), :]
             segDelta = delta_traj[trajMat[rollout][1][segment][0]:(trajMat[rollout][1][segment][1] + 1), :]
-            if labels[segCount] >= 0:
+            labels[segCount] = correctMode(segTraj, labels[segCount])
+
+            if labels[segCount] >= 0: #ignoring noisy clusters
+
                 if segment == 0:
                     segLabel = labels[segCount] * np.ones((len(segTraj), 1))
                     x_data = segTraj
@@ -219,4 +228,6 @@ def hybridSegmentClustering(rollouts, clustering_params):
                 label_train = np.vstack((label_train, segmentedData[rollout]['label']))
                 label_t_train = np.vstack((label_t_train, segmentedData[rollout]['label_t']))
 
-    return n_clusters_, segmentedData, x_train, u_train, delx_train, label_train, label_t_train
+    n_modes = len(np.unique(labels))
+    print('Corrected number of modes: %d' % n_modes)
+    return n_modes, segmentedData, x_train, u_train, delx_train, label_train, label_t_train

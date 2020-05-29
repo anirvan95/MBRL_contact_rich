@@ -1,6 +1,10 @@
 import numpy as np
 import gpflow
 import tensorflow as tf
+from sklearn.model_selection import GridSearchCV
+from sklearn.svm import SVC
+import time
+
 
 class multiDimGaussianProcess():
     def __init__(self, gpr_params):
@@ -48,6 +52,32 @@ class multiDimGaussianProcess():
             Y_mu[:, i] = np.squeeze(mu)
             Y_std[:, i] = np.sqrt(var).reshape(-1)
         return Y_mu, Y_std
+
+
+class SVMPrediction(object):
+    def __init__(self, svm_grid_params, svm_params):
+        self.svm_grid_params = svm_grid_params
+        self.svm_params = svm_params
+        self.clf = SVC(**self.svm_params)
+
+    def train(self, X, y):
+        '''
+        Trains SVMs for interest and guard functions
+        :param svm_grid_params:
+        :param svm_params:
+        :param XU_t:
+        :param labels_t:
+        :return:
+        '''
+        self.clf.fit(X, y)
+
+    def predict(self, X):
+        mode = self.clf.predict(X)
+        return mode
+
+    def predict_f(self, X):
+        mode_prob = self.clf.predict_proba(X)
+        return mode_prob
 
 
 def learnTransitionRelation(nmodes, segmentedRollouts):

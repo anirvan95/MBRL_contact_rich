@@ -65,7 +65,8 @@ def make_session(config=None, num_cpu=None, make_default=False, graph=None):
         config = tf1.ConfigProto(
             allow_soft_placement=True,
             inter_op_parallelism_threads=num_cpu,
-            intra_op_parallelism_threads=num_cpu)
+            intra_op_parallelism_threads=num_cpu,
+            device_count={'GPU': 0})
         config.gpu_options.allow_growth = True
 
     if make_default:

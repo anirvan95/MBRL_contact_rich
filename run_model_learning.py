@@ -1,13 +1,12 @@
 from common.clustering_utils import hybridSegmentClustering
 from common.model_learning_utils import learnTransitionRelation, multiDimGaussianProcess
-from sklearn.metrics import mean_squared_error
 import matplotlib.pyplot as plt
 import pickle
 import numpy as np
 from sklearn.svm import SVC
 from copy import deepcopy
 import time
-from sklearn.preprocessing import StandardScaler
+
 
 # Hyperparameters for model learning
 clustering_params = {
@@ -28,12 +27,24 @@ svm_grid_params = {
     'cv': 3,
     }
 
-svm_params = {
+svm_params_interest = {
     'kernel': 'rbf',
     'decision_function_shape': 'ovr',
     'tol': 1e-06,
-    'probability': True
+    'probability': True,
+    'C': 0.015625,
+    'gamma': 1024.0
     }
+
+svm_params_guard = {
+    'kernel': 'rbf',
+    'decision_function_shape': 'ovr',
+    'tol': 1e-06,
+    'probability': False,
+    'C': 0.25,
+    'gamma': 16.0
+    }
+
 
 trans_params = {
     'normalize': True,
@@ -64,15 +75,19 @@ expert_gpr_params = {
         }
 
 # Load log file
-p = pickle.load(open("logs/exp_log_5.pkl", "rb"))
-epoch = 100
+p = pickle.load(open("data/model_learning.pkl", "rb"))
+epoch = 3
+data = p[epoch]
+rollouts = data['rollouts']
+train_rollouts = rollouts[0:60]
+test_rollouts = rollouts[60:]
 
 #####################  Training hybrid model ############################
 
 print("\n ..................... Learning hybrid dynamical model .....................\n")
 start_time = time.time()
 # Hybrid segmentation and clustering
-nmodes, segmentedRollouts, x_train, u_train, delx_train, label_train, label_t_train = hybridSegmentClustering(p[epoch], clustering_params)
+nmodes, segmentedRollouts, x_train, u_train, delx_train, label_train, label_t_train = hybridSegmentClustering(test_rollouts, clustering_params)
 
 
 print("Hybrid mode segmentation and clustering done\n")
@@ -84,7 +99,7 @@ if nmodes > 1:
     y_data, x_data = learnTransitionRelation(nmodes, segmentedRollouts)
     returnMap = multiDimGaussianProcess(trans_params)
     returnMap.fit(x_data, y_data)
-    Y_mu, Y_std = returnMap.predict(x_data)
+    #Y_mu, Y_std = returnMap.predict(x_data)
     # rmse = mean_squared_error(y_data, Y_mu, squared=False)
     print("Transition Relation and Return Map learned\n")
 else:
@@ -94,8 +109,8 @@ else:
 
 # Guard functions
 if nmodes > 1:
-    guardFunction = SVC(**svm_params)
-    interestFunction = SVC(**svm_params)
+    guardFunction = SVC(**svm_params_guard)
+    interestFunction = SVC(**svm_params_interest)
     interestFunction.fit(x_train, label_train)
     xu_train = np.hstack((x_train, u_train))
     guardFunction.fit(np.array(xu_train), label_t_train)
@@ -124,44 +139,49 @@ print("Mode Dynamics learned\n")
 
 ## Sampling trajectory from learned model
 
-rollout = 2
-rollouts = p[epoch]
-traj = rollouts[rollout]
-mode = 0
-data = []
-state = traj['observations'][0]
-mode = 0
+rows = 4
+cols = 5
 
-for t in range(0, len(traj['observations'])):
-    print("Time: ", t)
-    action = traj['actions'][t]
-    state_action_pair = np.hstack((state, action)).reshape(1, -1)
-    # obtain next state
-    delta_state, next_state_var = modeDynamicsModel[mode].predict(np.expand_dims(np.hstack((state, action)), axis=0))
-    next_state = state+delta_state
-    if nmodes > 1:
-        # obtain next mode
-        next_mode = guardFunction.predict(state_action_pair)
-        if next_mode != mode:
-            print("Mode Switched")
-            next_state, next_state_var = returnMap.predict(np.expand_dims(np.hstack((state, action, mode, next_mode)), axis=0))
-    else:
-        next_mode = mode
+for rollout_num in range(0, len(test_rollouts)):
+    print("Rollout Num:", rollout_num)
+    traj = test_rollouts[rollout_num]
+    mode = 0
+    data = []
+    state = traj['observations'][0] #initial rollout
+    mode = 0
 
-    data_dic = {'time': t, 'pobs': state, 'varobs': next_state_var, 'aobs' : traj['observations'][t], 'action': action, 'cmode': mode, 'nmode': next_mode}
-    actual_state = traj['observations'][t]
-    if mode == 0:
-        plt.plot(t, state[0],'b*')
-        plt.plot(t, actual_state[0], 'r*')
-    else:
-        plt.plot(t, state[0], 'k*')
-        plt.plot(t, actual_state[0], 'g*')
+    plt.subplot(rows, cols, rollout_num + 1)
+    for t in range(0, len(traj['observations'])):
+        action = traj['actions'][t]
+        state_action_pair = np.hstack((state, action)).reshape(1, -1)
+        # obtain next state
+        delta_state_mu, delta_state_var = modeDynamicsModel[mode].predict(np.expand_dims(np.hstack((state, action)), axis=0))
+        next_state = state + np.random.multivariate_normal(np.squeeze(delta_state_mu.T), np.diag(np.squeeze(delta_state_var.T))) #sampling from distribution
+        if nmodes > 1:
+            # obtain next mode
+            next_mode = guardFunction.predict(state_action_pair) #deterministic
+            if next_mode != mode:
+                print("Mode Switched")
+                next_state_mu, next_state_var = returnMap.predict(np.expand_dims(np.hstack((state, action, mode, next_mode)), axis=0))
+                next_state = np.random.multivariate_normal(np.squeeze(next_state_mu.T), np.diag(np.squeeze(next_state_var.T)))
+        else:
+            next_mode = mode
 
-    data.append(data_dic)
-    mode = int(next_mode)
-    state = np.squeeze(next_state)
+        #data_dic = {'time': t, 'pobs': state, 'varobs': next_state_var, 'aobs': traj['observations'][t], 'action': action, 'cmode': mode, 'nmode': next_mode}
+        actual_state = traj['observations'][t]
+        if mode == 0:
+            plt.plot(t, state[0], 'b*')
+            plt.plot(t, actual_state[0], 'r*')
+        else:
+            plt.plot(t, state[0], 'k*')
+            plt.plot(t, actual_state[0], 'g*')
 
+        #data.append(data_dic)
+        mode = int(next_mode)
+        state = np.squeeze(next_state)
 
-plt.savefig('logs/model_learning_results_roll2_epoch100.png')
-pickle.dump(data, open("log/model_learning_results_roll2_epoch100.pkl", "wb"))
+plt_name = "logs/model_learning_results_epoch"+str(epoch)+".png"
+plt.savefig(plt_name)
+plt.clf()
+
 print("Total time: ", time.time()-start_time)
