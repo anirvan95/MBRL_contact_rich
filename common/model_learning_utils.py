@@ -3,6 +3,7 @@ import gpflow
 import tensorflow as tf
 from sklearn.model_selection import GridSearchCV
 from sklearn.svm import SVC
+from sklearn.linear_model import LogisticRegression
 import time
 
 
@@ -77,6 +78,31 @@ class SVMPrediction(object):
 
     def predict_f(self, X):
         mode_prob = self.clf.predict_proba(X)
+        return mode_prob
+
+
+class LRPrediction(object):
+    def __init__(self, lr_params):
+        self.lr_params = lr_params
+        self.logreg = LogisticRegression(**self.lr_params)
+
+    def train(self, X, y):
+        '''
+        Trains SVMs for interest and guard functions
+        :param svm_grid_params:
+        :param svm_params:
+        :param XU_t:
+        :param labels_t:
+        :return:
+        '''
+        self.logreg.fit(X, y)
+
+    def predict(self, X):
+        mode = self.logreg.predict(X)
+        return mode
+
+    def predict_f(self, X):
+        mode_prob = self.logreg.predict_proba(X)
         return mode_prob
 
 

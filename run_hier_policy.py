@@ -12,7 +12,7 @@ def train(env_id, num_iteration, seed, model_path=None):
 
     def policy_fn(name, ob_space, ac_space):
         return option_critic_model.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space,
-                                             hid_size=32, num_hid_layers=2)
+                                             hid_size=64, num_hid_layers=2)
 
     # Create Mujoco environment
     env = gym.make(env_id)
@@ -38,7 +38,7 @@ def train(env_id, num_iteration, seed, model_path=None):
                            gamma=0.99, lam=0.95,  # advantage estimation
                            max_timesteps=2e6, max_episodes=0, max_iters=num_iteration, max_seconds=0,  # time constraint
                            callback=None,  # you can do anything in the callback, since it takes locals(), globals()
-                           batch_size_per_episode=12000,
+                           batch_size_per_episode=15000,
                            adam_epsilon=1e-4,
                            schedule='constant'  # annealing for stepsize parameters (epsilon and adam)
                            )

@@ -125,13 +125,13 @@ def fitGaussianDistribution(traj, action, transitions):
 
 
 def correctMode(segTraj, mode):
-    rectBox = [-0.15, 0.75, 0.4, 0.75]
+    rectBox = [-0.125, 0.725, 0.4, 0.75]
     points_in = 0
     correctedMode = 0 # default mode
     if mode > 0:
         for t in range(0, len(segTraj)):
             points_in = points_in + (rectBox[0] < segTraj[t, 0] < rectBox[0]+rectBox[2] and rectBox[1]-rectBox[3] < segTraj[t, 1] < rectBox[1])
-        if points_in > 0.6*len(segTraj):
+        if points_in > 0.7*len(segTraj):
             correctedMode = mode
 
     return correctedMode

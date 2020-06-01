@@ -4,7 +4,7 @@ import numpy as np
 from common.distribution import DiagGaussianPdType
 import gym
 from common.mpi_running_mean_std import RunningMeanStd
-from common.model_learning_utils import SVMPrediction
+from common.model_learning_utils import LRPrediction
 import time
 
 def dense3D2(x, size, name, option, num_options=1, weight_init=None, bias=True):
@@ -86,26 +86,24 @@ class MlpPolicy(object):
         ac1 = self._act(stochastic, ob[None], [option])
         return ac1[0]
 
-    def init_hybridmodel(self, svm_grid_params, svm_params_interest, svm_params_guard):
-        self.intfc = SVMPrediction(svm_grid_params, svm_params_interest)
-        self.termfc = SVMPrediction(svm_grid_params, svm_params_guard)
+    def init_hybridmodel(self, lr_params_interest, lr_params_guard):
+        self.intfc = LRPrediction(lr_params_interest)
+        self.termfc = LRPrediction(lr_params_guard)
 
-    def learn_hybridmodel(self, intXD, intYD, termXD, termYD):
+    def learn_hybridmodel(self, intXD, intYD, termYD):
         for datasets in range(0, len(intXD)):
             if datasets == 0:
                 intX = intXD[datasets]
                 intY = intYD[datasets]
-                termX = termXD[datasets]
                 termY = termYD[datasets]
             else:
                 intX = np.vstack((intX, intXD[datasets]))
                 intY = np.vstack((intY, intYD[datasets]))
-                termX = np.vstack((termX, termXD[datasets]))
                 termY = np.vstack((termY, termYD[datasets]))
 
         self.intfc.train(intX, np.squeeze(intY))
-        self.termfc.train(termX, np.squeeze(termY))
-
+        self.termfc.train(intX, np.squeeze(termY))
+    '''
     def get_tpred(self, ob, option):
         mc_samples = 24
         if self.nmodes == self.num_options:
@@ -121,6 +119,9 @@ class MlpPolicy(object):
         else:
             t_pred = 0.0
         return t_pred
+    '''
+
+    # TODO: Generalize to num_options > 2
 
     def get_intfc(self, obs):
         if self.nmodes == self.num_options:
@@ -130,13 +131,23 @@ class MlpPolicy(object):
             int_fc = np.array([[1.0, 0.0]])
         return int_fc
 
-    def get_preds(self, ob):
+    def get_tpred(self, obs):
+        if self.nmodes == self.num_options:
+            beta = np.array([[1.0, 1.0]]) - self.termfc.predict_f(obs)
+            #include assert to check prob
+        else:
+            beta = np.array([[0.0, 1.0]])
+        return beta
 
+    def get_preds(self, ob):
         # Get B(s,w)
+        '''
         beta = []
         for opt in range(self.num_options):
             beta.append(self.get_tpred(ob, opt))
         beta = np.array(beta).T
+        '''
+        beta = self.get_tpred([ob])
         # Get V(s,w)
         vpred = []
         for opt in range(self.num_options):
