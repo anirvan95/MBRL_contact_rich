@@ -17,6 +17,8 @@ clustering_params = {
     'DBmin_samples': 2   # DBSCAN minimum cluster size parameter for clustering segments
     }
 
+lr_params = {'C': 1024.0, 'penalty': 'l2'}
+'''
 svm_grid_params = {
     'param_grid': {"C": np.logspace(-10, 10, endpoint=True, num=11, base=2.),
                    "gamma": np.logspace(-10, 10, endpoint=True, num=11, base=2.)},
@@ -44,7 +46,7 @@ svm_params_guard = {
     'C': 0.25,
     'gamma': 16.0
     }
-
+'''
 
 trans_params = {
     'normalize': True,

@@ -47,8 +47,6 @@ svm_params_guard = {
     'decision_function_shape': 'ovr',
     'tol': 1e-06,
     'probability': False,
-    'C': 0.25,
-    'gamma': 16.0
     }
 lr_params_interest = {'C': 1, 'penalty': 'l2'}
 lr_params_guard = {'C': 1, 'penalty': 'l2'}
@@ -110,7 +108,7 @@ def sample_trajectory(pi, env, horizon=150, batch_size=12000):
         acs[t] = ac
         prevacs[t] = prevac
         beta, vpred, op_vpred, op_prob, int_fc = pi.get_preds(ob)
-        betas.append(beta)
+        betas.append(beta[0])
         vpreds.append(vpred)
         op_vpreds.append(op_vpred)
         int_fcs.append(int_fc)
@@ -125,7 +123,7 @@ def sample_trajectory(pi, env, horizon=150, batch_size=12000):
             data = {'observations': observations, 'actions': actions}
             rollouts.append(data)
             i=0
-
+        #tprob = pi.get_tpred(ob, option)
         ob, rew, new, _ = env.step(ac)
         if render:
             env.render()
@@ -134,8 +132,8 @@ def sample_trajectory(pi, env, horizon=150, batch_size=12000):
         curr_opt_duration += 1
         # check if current option is about to end in this state
         #print(beta)
-        tprob = beta[option][0]
-        if tprob > 0.75:
+        tprob = beta[0][option]
+        if tprob > 0.5:
             term = True
         else:
             term = False
@@ -218,7 +216,7 @@ U.initialize()
 
 
 p = pickle.load(open("option_critic_data_lr.pkl", "rb"))
-data = p[35]
+data = p[21]
 seg_adv = data['seg']
 rollouts_adv = data['rollouts']
 nmodes, segmentedRollouts, x_train, u_train, delx_train, label_train, label_t_train = hybridSegmentClustering(rollouts_adv, clustering_params)
@@ -234,7 +232,7 @@ if nmodes > 1:
         print(pi.intfc.grid_results.best_params_)
         print(pi.termfc.grid_results.best_params_)
     else:
-        pi.learn_hybridmodel(x_train, label_train, label_t_train)
+        pi.learn_hybridmodel(x_train, label_train, x_train, label_t_train)
 
 stime = time.time()
 seg, rollouts = sample_trajectory(pi, env, horizon=150, batch_size=batch_size_per_episode)

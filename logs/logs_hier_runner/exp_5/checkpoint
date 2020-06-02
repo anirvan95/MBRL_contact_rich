@@ -1,0 +1,2 @@
+model_checkpoint_path: "/home/anirvan/MasterThesis/MBRL_contact_rich/logs/logs_hier_runner/exp_5/"
+all_model_checkpoint_paths: "/home/anirvan/MasterThesis/MBRL_contact_rich/logs/logs_hier_runner/exp_5/"

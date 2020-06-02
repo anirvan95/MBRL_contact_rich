@@ -12,7 +12,7 @@ def train(env_id, num_iteration, seed, model_path=None):
 
     def policy_fn(name, ob_space, ac_space):
         return option_critic_model.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space,
-                                             hid_size=64, num_hid_layers=2)
+                                             hid_size=32, num_hid_layers=2)
 
     # Create Mujoco environment
     env = gym.make(env_id)
@@ -34,13 +34,13 @@ def train(env_id, num_iteration, seed, model_path=None):
     pi = hier_runner.learn(env, policy_fn, num_options=2,
                            horizon=150,  # timesteps per actor per update
                            clip_param=0.2, entcoeff=0.02,  # clipping parameter epsilon, entropy coeff
-                           optim_epochs=10, mainlr=3e-4, optim_batchsize=160,  # optimization hypers
+                           optim_epochs=10, mainlr=3e-4, optim_batchsize=64,  # optimization hypers
                            gamma=0.99, lam=0.95,  # advantage estimation
-                           max_timesteps=2e6, max_episodes=0, max_iters=num_iteration, max_seconds=0,  # time constraint
+                           max_timesteps=3e6, max_episodes=0, max_iters=num_iteration, max_seconds=0,  # time constraint
                            callback=None,  # you can do anything in the callback, since it takes locals(), globals()
-                           batch_size_per_episode=15000,
+                           batch_size_per_episode=int(150*80),
                            adam_epsilon=1e-4,
-                           schedule='constant'  # annealing for stepsize parameters (epsilon and adam)
+                           schedule='linear'  # annealing for stepsize parameters (epsilon and adam)
                            )
     env.close()
     if model_path:
@@ -55,7 +55,7 @@ def main():
     parser.add_argument('--env', help='environment ID', type=str, default='Block2D-v1')
     parser.add_argument('--seed', help='RNG seed', type=int, default=1)
     parser.add_argument('--reward_scale', help='Reward scale factor. Default: 1.0', default=1.0, type=float)
-    parser.add_argument('--num_iteration', type=float, default=110)
+    parser.add_argument('--num_iteration', type=float, default=200)
     parser.add_argument('--model_path', help='Path to save trained model to',
                         default=os.path.join(logger.get_dir(), 'block_ppo'), type=str)
     parser.add_argument('--save_video_interval', help='Save video every x steps (0 = disabled)', default=0, type=int)

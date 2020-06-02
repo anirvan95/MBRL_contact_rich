@@ -56,8 +56,7 @@ class multiDimGaussianProcess():
 
 
 class SVMPrediction(object):
-    def __init__(self, svm_grid_params, svm_params):
-        self.svm_grid_params = svm_grid_params
+    def __init__(self, svm_params):
         self.svm_params = svm_params
         self.clf = SVC(**self.svm_params)
 

@@ -61,6 +61,38 @@ def flatten_lists(listoflists):
     return [el for list_ in listoflists for el in list_]
 
 
+# collect trajectory for model learning
+def sample_trajectory_model_learning(pi, env, horizon=150, batch_size=3000):
+    n_samples = 1
+    ob = env.reset()
+    ac = env.action_space.sample()
+    observations = np.array([ob for _ in range(horizon)])
+    actions = np.array([ac for _ in range(horizon)])
+    num_options = 2
+    option = 0
+    t = 0
+    rollouts = []
+    while n_samples < batch_size:
+        ac = pi.act(True, ob, option)
+        observations[t] = ob
+        actions[t] = ac
+        ob, rew, new, _ = env.step(ac)
+        beta = pi.get_tpred([ob])
+        tprob = beta[0][option]
+        if tprob > 0.5:
+            option, active_options_t = pi.get_option(ob)
+        t = t + 1
+        if t == horizon or new:
+            data = {'observations': observations, 'actions': actions}
+            rollouts.append(data)
+            ob = env.reset()
+            t = 0
+
+        n_samples = n_samples + 1
+
+    return rollouts
+
+
 # collect trajectory
 def sample_trajectory(pi, env, horizon=150, batch_size=12000, render=False):
     GOAL = np.array([0, 0.5])
@@ -99,12 +131,8 @@ def sample_trajectory(pi, env, horizon=150, batch_size=12000, render=False):
 
     opt_duration = [[] for _ in range(num_options)]
     t = 0
-    i = 0
     curr_opt_duration = 0
 
-    rollouts = []
-    observations = np.array([ob for _ in range(horizon)])
-    actions = np.array([ac for _ in range(horizon)])
     insertion = 0
     new_rollout = True
     while t < batch_size:
@@ -125,36 +153,18 @@ def sample_trajectory(pi, env, horizon=150, batch_size=12000, render=False):
         op_probs.append(op_prob)
 
         activated_options[t] = active_options_t
-        observations[i] = ob
-        actions[i] = ac
-        i = i + 1
 
-        if i == horizon:
-            data = {'observations': observations, 'actions': actions}
-            rollouts.append(data)
-            i = 0
         ob, rew, new, _ = env.step(ac)
         if render:
             env.render()
-            '''
-            if pi.nmodes == 2:
-                #print("Term Prob", tprob)
-                #print("Beta", beta)
-                #print("Alternative beta", pi.get_altBeta([ob]))
-                #print("Interest Func", int_fc)
-                #print("Option", option)
-            '''
-        rews[t] = rew
 
+        rews[t] = rew
         curr_opt_duration += 1
         # check if current option is about to end in this state
-        tprob = beta[0][option]
-        if tprob >= 0.5:
-            term = True
-        else:
-            term = False
+        nbeta = pi.get_tpred([ob])
+        tprob = nbeta[0][option]
 
-        if term:
+        if tprob >= 0.5:
             #print("Current Option Terminated !! ")
             #print("Sample number", t)
             opt_duration[option].append(curr_opt_duration)
@@ -162,6 +172,7 @@ def sample_trajectory(pi, env, horizon=150, batch_size=12000, render=False):
             last_option = option
             option, active_options_t = pi.get_option(ob)
             #print("Next option", option)
+            rews[t] = rews[t] + 10
 
         cur_ep_ret += rew
         cur_ep_len += 1
@@ -201,7 +212,7 @@ def sample_trajectory(pi, env, horizon=150, batch_size=12000, render=False):
            "intfc": np.array(int_fcs),
            "activated_options": activated_options, "success": insertion}
 
-    return seg, rollouts
+    return seg
 
 
 def add_vtarg_and_adv(seg, gamma, lam, num_options):
@@ -220,7 +231,6 @@ def add_vtarg_and_adv(seg, gamma, lam, num_options):
         gaelam[t] = lastgaelam = delta + gamma * lam * nonterminal * lastgaelam
 
     seg["op_adv"] = gaelam
-    # above equations not used
 
     term_p = np.vstack((np.array(seg["term_p"]), np.array(seg["next_term_p"])))
     q_sw = np.vstack((seg["vpred"], seg["nextvpred"]))
@@ -300,7 +310,7 @@ def learn(env, policy_fn, *, num_options=2,
     op_loss = - tf1.reduce_sum(betas * tf1.reduce_sum(pi_I * option_hot, axis=1) * op_adv)
     log_pi = tf1.log(tf1.clip_by_value(pi.op_pi, 1e-20, 1.0))
     op_entropy = -tf1.reduce_mean(pi.op_pi * log_pi, reduction_indices=1)
-    op_loss -= 0.01 * tf1.reduce_sum(op_entropy)
+    op_loss -= 0.001 * tf1.reduce_sum(op_entropy)
 
     var_list = pi.get_trainable_variables()
     lossandgrad = U.function([ob, ac, atarg, ret, lrmult, option], losses + [U.flatgrad(total_loss, var_list)])
@@ -329,10 +339,10 @@ def learn(env, policy_fn, *, num_options=2,
     rewbuffer = deque(maxlen=5)  # rolling buffer for episode rewards
 
     #rolling buffers for training interest and guard functions
-    label_train_dataset = deque(maxlen=3)
-    label_t_train_dataset = deque(maxlen=3)
-    xu_train_dataset = deque(maxlen=3)
-    x_train_dataset = deque(maxlen=3)
+    label_train_dataset = deque(maxlen=1)
+    label_t_train_dataset = deque(maxlen=1)
+    xu_train_dataset = deque(maxlen=1)
+    x_train_dataset = deque(maxlen=1)
     p = []
     while True:
         if callback: callback(locals(), globals())
@@ -356,22 +366,8 @@ def learn(env, policy_fn, *, num_options=2,
         print("Collecting samples.. !! ")
         stime = time.time()
         render = False
-        if iters_so_far > 90:
-            render = True
-        seg, rollouts = sample_trajectory(pi, env, horizon=150, batch_size=batch_size_per_episode, render=render)
+        seg = sample_trajectory(pi, env, horizon=horizon, batch_size=batch_size_per_episode, render=render)
         print("Samples collected in !! :", time.time() - stime)
-
-        nmodes, segmentedRollouts, x_train, u_train, delx_train, label_train, label_t_train = hybridSegmentClustering(
-            rollouts, clustering_params)
-        data = {'seg': seg, 'rollouts': rollouts}
-        p.append(data)
-        pickle.dump(p, open("option_critic_data_lr.pkl", "wb"))
-        if nmodes == num_options:  # slight hack here, currently only testing with 2 modes, improve to nmodes
-            pi.nmodes = nmodes
-            x_train_dataset.append(x_train)
-            label_train_dataset.append(label_train)
-            label_t_train_dataset.append(label_t_train)
-            pi.learn_hybridmodel(x_train_dataset, label_train_dataset, label_t_train_dataset)
 
         datas = [0 for _ in range(num_options)]
         add_vtarg_and_adv(seg, gamma, lam, num_options)
@@ -459,6 +455,24 @@ def learn(env, policy_fn, *, num_options=2,
         opgrad(seg['ob'], seg['opts'], seg["last_betas"], seg["op_adv"], seg["intfc"], seg["activated_options"])[
             0]
         adam.update(opgrads, 1e-4)
+
+
+        #Update model with updated policy
+        rollouts = sample_trajectory_model_learning(pi, env, horizon=horizon, batch_size=int(batch_size_per_episode/4))
+        print("Updating Model")
+        nmodes, segmentedRollouts, x_train, u_train, delx_train, label_train, label_t_train = hybridSegmentClustering(
+            rollouts, clustering_params)
+        data = {'seg': seg, 'rollouts': rollouts}
+        p.append(data)
+        pickle.dump(p, open("option_critic_data_lr_2.pkl", "wb"))
+        pi.nmodes = nmodes
+        if nmodes == num_options:  # slight hack here, currently only testing with 2 modes, improve to nmodes
+            # xu_train = np.hstack((x_train, u_train))
+            x_train_dataset.append(x_train)
+            label_train_dataset.append(label_train)
+            label_t_train_dataset.append(label_t_train)
+            # xu_train_dataset.append(xu_train)
+            pi.learn_hybridmodel(x_train_dataset, label_train_dataset, x_train_dataset, label_t_train_dataset)
 
         lrlocal = (seg["ep_lens"], seg["ep_rets"])  # local values
         listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal)  # list of tuples

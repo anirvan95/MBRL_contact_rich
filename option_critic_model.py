@@ -5,7 +5,9 @@ from common.distribution import DiagGaussianPdType
 import gym
 from common.mpi_running_mean_std import RunningMeanStd
 from common.model_learning_utils import LRPrediction
+from common.model_learning_utils import SVMPrediction
 import time
+
 
 def dense3D2(x, size, name, option, num_options=1, weight_init=None, bias=True):
     w = tf1.get_variable(name + "/w", [num_options, x.get_shape()[1], size], initializer=weight_init)
@@ -86,23 +88,27 @@ class MlpPolicy(object):
         ac1 = self._act(stochastic, ob[None], [option])
         return ac1[0]
 
-    def init_hybridmodel(self, lr_params_interest, lr_params_guard):
-        self.intfc = LRPrediction(lr_params_interest)
-        self.termfc = LRPrediction(lr_params_guard)
+    def init_hybridmodel(self, params_interest, params_guard):
+        self.intfc = LRPrediction(params_interest)
+        self.termfc = LRPrediction(params_guard)
 
-    def learn_hybridmodel(self, intXD, intYD, termYD):
+    def learn_hybridmodel(self, intXD, intYD, termXD, termYD):
         for datasets in range(0, len(intXD)):
             if datasets == 0:
                 intX = intXD[datasets]
                 intY = intYD[datasets]
+                termX = termXD[datasets]
                 termY = termYD[datasets]
             else:
                 intX = np.vstack((intX, intXD[datasets]))
                 intY = np.vstack((intY, intYD[datasets]))
+                termX = np.vstack((termX, termXD[datasets]))
                 termY = np.vstack((termY, termYD[datasets]))
 
         self.intfc.train(intX, np.squeeze(intY))
-        self.termfc.train(intX, np.squeeze(termY))
+        self.termfc.train(termX, np.squeeze(termY))
+
+    # TODO: Generalize to num_options > 2
     '''
     def get_tpred(self, ob, option):
         mc_samples = 24
@@ -120,8 +126,6 @@ class MlpPolicy(object):
             t_pred = 0.0
         return t_pred
     '''
-
-    # TODO: Generalize to num_options > 2
 
     def get_intfc(self, obs):
         if self.nmodes == self.num_options:
@@ -204,7 +208,12 @@ class MlpPolicy(object):
             for i in indices:
                 activated_options[i] = 1.
 
-        pi_I = op_prob[0] * (activated_options * int_func) / np.sum(op_prob[0] * (activated_options * int_func), axis=1)
+        try:
+            pi_I = op_prob[0] * (activated_options * int_func) / np.sum(op_prob[0] * (activated_options * int_func), axis=1)
+        except ValueError:
+            print(op_prob[0].shape)
+            print(activated_options.shape)
+            print(int_func.shape)
 
         return np.random.choice(range(len(op_prob[0][0])), p=pi_I[0]), activated_options
 
