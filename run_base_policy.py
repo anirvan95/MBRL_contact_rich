@@ -7,13 +7,12 @@ import os
 
 
 def train(env_id, num_iteration, seed, model_path=None):
-
     # Create TF session
-    U.make_session().__enter__()
+    U.make_session(num_cpu=1).__enter__()
 
     def policy_fn(name, ob_space, ac_space):
         return actor_critic_model.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space,
-                                    hid_size=32, num_hid_layers=2)
+                                            hid_size=32, num_hid_layers=2)
 
     # Create Mujoco environment
     env = gym.make(env_id)
@@ -23,13 +22,15 @@ def train(env_id, num_iteration, seed, model_path=None):
 
     # Train the policy using PPO & GAE in actor critic fashion
     # Tune hyperparameters here, will be moved to main args for grid search
+
     pi = base_runner.learn(env, policy_fn,
-                        max_iters=num_iteration,
-                        horizon=150,
-                        clip_param=0.2, entcoeff=0.0,
-                        optim_epochs=10, optim_stepsize=3e-4, optim_batchsize=64,
-                        gamma=0.99, lam=0.95, schedule='constant',
-                        )
+                           horizon=150, batch_size_per_episode=7500,
+                           clip_param=0.2, entcoeff=0.01,
+                           optim_epochs=100, optim_stepsize=3e-4, optim_batchsize=32,
+                           gamma=0.99, lam=0.95,
+                           max_timesteps=2.5e6, max_iters=100,
+                           adam_epsilon=1e-4, schedule='linear'
+                           )
     env.close()
     if model_path:
         U.save_state(model_path)
@@ -38,17 +39,14 @@ def train(env_id, num_iteration, seed, model_path=None):
 
 
 def main():
-
-
     import argparse
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--env', help='environment ID', type=str, default='Block2D-v1')
     parser.add_argument('--seed', help='RNG seed', type=int, default=1)
     parser.add_argument('--reward_scale', help='Reward scale factor. Default: 1.0', default=1.0, type=float)
-    parser.add_argument('--num_iteration', type=float, default=110)
-    parser.add_argument('--model_path', help='Path to save trained model to', default=os.path.join(logger.get_dir(), 'block_ppo'), type=str)
-    parser.add_argument('--save_video_interval', help='Save video every x steps (0 = disabled)', default=0, type=int)
-    parser.add_argument('--save_video_length', help='Length of recorded video. Default: 200', default=200, type=int)
+    parser.add_argument('--num_iteration', type=float, default=150)
+    parser.add_argument('--model_path', help='Path to save trained model to',
+                        default=os.path.join(logger.get_dir(), 'block_ppo'), type=str)
     parser.add_argument('--log_path', help='Directory to save learning curve data.', default=None, type=str)
     parser.add_argument('--play', default=False, action='store_true')
     parser.add_argument('--horizon', help='Maximum time horizon in each iteration', default=150, type=int)

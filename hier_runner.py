@@ -5,71 +5,27 @@ import logger
 import common.tf_util as U
 import numpy as np
 from common.mpi_adam import MpiAdam
-from common.mpi_moments import mpi_moments
 from mpi4py import MPI
 from collections import deque
-from common.console_util import fmt_row
-from common.math_util import explained_variance
+from common.math_util import zipsame, flatten_lists
 import time
 import pickle
 
-clustering_params = {
-    'per_train': 1,  # percentage of total rollouts to be trained
-    'window_size': 2,  # window size of transition point clustering
-    'weight_prior': 0.05,  # weight prior of DPGMM clustering for transition point
-    'DBeps': 3.0,  # DBSCAN noise parameter for clustering segments
-    'DBmin_samples': 2  # DBSCAN minimum cluster size parameter for clustering segments
-}
-lr_params_interest = {'C': 1, 'penalty': 'l2'}
-lr_params_guard = {'C': 1, 'penalty': 'l2'}
-
-'''
-svm_grid_params = {
-    'param_grid': {"C": np.logspace(-10, 10, endpoint=True, num=11, base=2.),
-                   "gamma": np.logspace(-10, 10, endpoint=True, num=11, base=2.)},
-    'scoring': 'accuracy',
-    # 'cv': 5,
-    'n_jobs': -1,
-    'iid': False,
-    'cv': 3,
-}
-svm_params_interest = {
-    'kernel': 'rbf',
-    'decision_function_shape': 'ovr',
-    'tol': 1e-06,
-    'probability': True,
-    }
-
-svm_params_guard = {
-    'kernel': 'rbf',
-    'decision_function_shape': 'ovr',
-    'tol': 1e-06,
-    'probability': False,
-    }
-'''
 
 tf1.disable_v2_behavior()
 
 
-def zipsame(*seqs):
-    L = len(seqs[0])
-    assert all(len(seq) == L for seq in seqs[1:])
-    return zip(*seqs)
-
-
-def flatten_lists(listoflists):
-    return [el for list_ in listoflists for el in list_]
-
-
 # collect trajectory for model learning
 def sample_trajectory_model_learning(pi, env, horizon=150, batch_size=3000):
+    """
+                Generates rollouts for model_learning
+    """
     n_samples = 1
     ob = env.reset()
     ac = env.action_space.sample()
     observations = np.array([ob for _ in range(horizon)])
     actions = np.array([ac for _ in range(horizon)])
-    num_options = 2
-    option = 0
+    option, active_options_t = pi.get_option(ob)
     t = 0
     rollouts = []
     while n_samples < batch_size:
@@ -79,13 +35,14 @@ def sample_trajectory_model_learning(pi, env, horizon=150, batch_size=3000):
         ob, rew, new, _ = env.step(ac)
         beta = pi.get_tpred([ob])
         tprob = beta[0][option]
-        if tprob > 0.5:
+        if tprob > pi.term_prob:
             option, active_options_t = pi.get_option(ob)
         t = t + 1
         if t == horizon or new:
             data = {'observations': observations, 'actions': actions}
             rollouts.append(data)
             ob = env.reset()
+            option, active_options_t = pi.get_option(ob)
             t = 0
 
         n_samples = n_samples + 1
@@ -95,11 +52,14 @@ def sample_trajectory_model_learning(pi, env, horizon=150, batch_size=3000):
 
 # collect trajectory
 def sample_trajectory(pi, env, horizon=150, batch_size=12000, render=False):
+    """
+            Generates rollouts for policy optimization
+    """
     GOAL = np.array([0, 0.5])
     ac = env.action_space.sample()  # not used, just so we have the datatype
     new = True  # marks if we're on first timestep of an episode
     ob = env.reset()
-    num_options = 2
+    num_options = pi.num_options
     cur_ep_ret = 0  # return in current episode
     cur_ep_len = 0  # len of current episode
     ep_rets = []  # returns of completed episodes in this segment
@@ -164,15 +124,15 @@ def sample_trajectory(pi, env, horizon=150, batch_size=12000, render=False):
         nbeta = pi.get_tpred([ob])
         tprob = nbeta[0][option]
 
-        if tprob >= 0.5:
-            #print("Current Option Terminated !! ")
-            #print("Sample number", t)
+        if tprob >= pi.term_prob:
+            # print("Current Option Terminated !! ")
+            # print("Sample number", t)
             opt_duration[option].append(curr_opt_duration)
             curr_opt_duration = 0.
             last_option = option
             option, active_options_t = pi.get_option(ob)
-            #print("Next option", option)
-            rews[t] = rews[t] + 10
+            # print("Next option", option)
+            rews[t] = rews[t] + pi.rg
 
         cur_ep_ret += rew
         cur_ep_len += 1
@@ -203,7 +163,7 @@ def sample_trajectory(pi, env, horizon=150, batch_size=12000, render=False):
     op_probs = np.array(op_probs).reshape(batch_size, num_options)
     int_fcs = np.array(int_fcs).reshape(batch_size, num_options)
     last_betas = betas[range(len(last_options)), last_options]
-    print("\n Maximum Reward this batch: ", max(ep_rets), " \n")
+    print("\n Maximum Reward this iteration: ", max(ep_rets), " \n")
     seg = {"ob": obs, "rew": rews, "vpred": np.array(vpreds), "op_vpred": np.array(op_vpreds), "new": news,
            "ac": acs, "opts": opts, "prevac": prevacs, "nextvpred": vpred * (1 - new),
            "nextop_vpred": op_vpred * (1 - new),
@@ -216,7 +176,9 @@ def sample_trajectory(pi, env, horizon=150, batch_size=12000, render=False):
 
 
 def add_vtarg_and_adv(seg, gamma, lam, num_options):
-    # Compute advantage and other value functions using GAE
+    """
+        Compute advantage and other value functions using GAE
+    """
     new = np.append(seg["new"], 0)  # last element is only used for last vtarg, but we already zeroed it if last new = 1
     op_vpred = np.append(seg["op_vpred"], seg["nextop_vpred"])
     T = len(seg["rew"])
@@ -254,17 +216,21 @@ def add_vtarg_and_adv(seg, gamma, lam, num_options):
     seg["tdlamret"] = seg["adv"] + u_sw[range(len(opts)), opts]
 
 
-def learn(env, policy_fn, *, num_options=2,
+def learn(env, policy_fn, clustering_params, lr_params_interest, lr_params_guard, *, num_options=2,
           horizon,  # timesteps per actor per update
-          clip_param, entcoeff=0.02,  # clipping parameter epsilon, entropy coeff
-          optim_epochs, mainlr, optim_batchsize=72,  # optimization hypers
-          gamma, lam,  # advantage estimation
+          clip_param, pol_entcoeff=0.02, op_entcoeff=0.01, # clipping parameter epsilon, entropy coeff
+          optim_epochs=10, mainlr=3e-4, intlr=1e-4, optim_batchsize=160,  # optimization hypers
+          gamma=0.99, lam=0.95,  # advantage estimation
           max_timesteps=0, max_episodes=0, max_iters=0, max_seconds=0,  # time constraint
           callback=None,  # you can do anything in the callback, since it takes locals(), globals()
           batch_size_per_episode=15000,
           adam_epsilon=1.2e-4,
-          schedule='constant'  # annealing for stepsize parameters (epsilon and adam)
+          schedule='linear'  # annealing for stepsize parameters (epsilon and adam)
           ):
+    """
+            Core learning function
+    """
+
     ob_space = env.observation_space
     ac_space = env.action_space
     pi = policy_fn("pi", ob_space, ac_space)  # Construct network for new policy
@@ -279,17 +245,17 @@ def learn(env, policy_fn, *, num_options=2,
 
     ob = U.get_placeholder_cached(name="ob")
     option = U.get_placeholder_cached(name="option")
-    term_adv = U.get_placeholder(name='term_adv', dtype=tf1.float32, shape=[None])
     op_adv = tf1.placeholder(dtype=tf1.float32, shape=[None])  # Target advantage function (if applicable)
     betas = tf1.placeholder(dtype=tf1.float32, shape=[None])  # Empirical return
 
     ac = pi.pdtype.sample_placeholder([None])
 
+    # Defining losses for optimization
     kloldnew = oldpi.pd.kl(pi.pd)
     ent = pi.pd.entropy()
     meankl = tf1.reduce_mean(kloldnew)
     meanent = tf1.reduce_mean(ent)
-    pol_entpen = (-entcoeff) * meanent
+    pol_entpen = (-pol_entcoeff) * meanent
 
     ratio = tf1.exp(pi.pd.logp(ac) - oldpi.pd.logp(ac))  # pnew / pold
     surr1 = ratio * atarg  # surrogate from conservative policy iteration
@@ -304,13 +270,12 @@ def learn(env, policy_fn, *, num_options=2,
     activated_options = tf1.placeholder(dtype=tf1.float32, shape=[None, num_options])
     option_hot = tf1.one_hot(option, depth=num_options)
     intfc = tf1.placeholder(dtype=tf1.float32, shape=[None, num_options])
-    pi_I = (intfc * activated_options) * pi.op_pi / tf1.expand_dims(
-        tf1.reduce_sum((intfc * activated_options) * pi.op_pi, axis=1), 1)
+    pi_I = (intfc * activated_options) * pi.op_pi / tf1.expand_dims(tf1.reduce_sum((intfc * activated_options) * pi.op_pi, axis=1), 1)
     pi_I = tf1.clip_by_value(pi_I, 1e-6, 1 - 1e-6)
     op_loss = - tf1.reduce_sum(betas * tf1.reduce_sum(pi_I * option_hot, axis=1) * op_adv)
-    log_pi = tf1.log(tf1.clip_by_value(pi.op_pi, 1e-20, 1.0))
-    op_entropy = -tf1.reduce_mean(pi.op_pi * log_pi, reduction_indices=1)
-    op_loss -= 0.001 * tf1.reduce_sum(op_entropy)
+    log_op_pi = tf1.log(tf1.clip_by_value(pi.op_pi, 1e-20, 1.0))
+    op_entropy = -tf1.reduce_mean(pi.op_pi * log_op_pi, reduction_indices=1)
+    op_loss -= op_entcoeff * tf1.reduce_sum(op_entropy)
 
     var_list = pi.get_trainable_variables()
     lossandgrad = U.function([ob, ac, atarg, ret, lrmult, option], losses + [U.flatgrad(total_loss, var_list)])
@@ -327,9 +292,7 @@ def learn(env, policy_fn, *, num_options=2,
     adam.sync()
 
     currIter = 0
-    totalIter = 100
     optim_stepsize = mainlr
-
     episodes_so_far = 0
     timesteps_so_far = 0
     global iters_so_far
@@ -338,12 +301,17 @@ def learn(env, policy_fn, *, num_options=2,
     lenbuffer = deque(maxlen=5)  # rolling buffer for episode lengths
     rewbuffer = deque(maxlen=5)  # rolling buffer for episode rewards
 
-    #rolling buffers for training interest and guard functions
+    # rolling buffers for training interest and guard functions
     label_train_dataset = deque(maxlen=1)
     label_t_train_dataset = deque(maxlen=1)
     xu_train_dataset = deque(maxlen=1)
     x_train_dataset = deque(maxlen=1)
+    #pickel variable
     p = []
+
+    model_learning_flag = True
+    retain_model = False
+
     while True:
         if callback: callback(locals(), globals())
         if max_timesteps and timesteps_so_far >= max_timesteps:
@@ -363,7 +331,7 @@ def learn(env, policy_fn, *, num_options=2,
             raise NotImplementedError
 
         logger.log("********** Iteration %i ************" % iters_so_far)
-        print("Collecting samples.. !! ")
+        print("Collecting samples for policy optimization !! ")
         stime = time.time()
         render = False
         seg = sample_trajectory(pi, env, horizon=horizon, batch_size=batch_size_per_episode, render=render)
@@ -381,91 +349,51 @@ def learn(env, policy_fn, *, num_options=2,
 
         vpredbefore = seg["vpred"]  # predicted value function before udpate
         atarg = (atarg - atarg.mean()) / atarg.std()  # standardized advantage function estimate
-        if hasattr(pi, "ob_rms"): pi.ob_rms.update(ob)  # update running mean/std for policy
+        if hasattr(pi, "ob_rms"):
+            pi.ob_rms.update(ob)  # update running mean/std for policy
         assign_old_eq_new()
 
-        min_batch = optim_batchsize
-        t_advs = [[] for _ in range(num_options)]
         for opt in range(num_options):
             indices = np.where(opts == opt)[0]
-            print("batch size:", indices.size)
+            print("Batch Size:", indices.size)
             opt_d[opt] = indices.size
             if not indices.size:
-                t_advs[opt].append(0.)
                 continue
 
-            ########## This part is only necessary when we use options. We proceed to these verifications in order not to discard any collected trajectories.
-            if datas[opt] != 0:
-                if (indices.size < min_batch and datas[opt].n > min_batch):
-                    datas[opt] = Dataset(
-                        dict(ob=ob[indices], ac=ac[indices], atarg=atarg[indices], vtarg=tdlamret[indices]),
-                        shuffle=not pi.recurrent)
-                    t_advs[opt].append(0.)
-                    continue
+            datas[opt] = d = Dataset(dict(ob=ob[indices], ac=ac[indices], atarg=atarg[indices], vtarg=tdlamret[indices]),shuffle=not pi.recurrent)
 
-                elif indices.size + datas[opt].n < min_batch:
-                    oldmap = datas[opt].data_map
-
-                    cat_ob = np.concatenate((oldmap['ob'], ob[indices]))
-                    cat_ac = np.concatenate((oldmap['ac'], ac[indices]))
-                    cat_atarg = np.concatenate((oldmap['atarg'], atarg[indices]))
-                    cat_vtarg = np.concatenate((oldmap['vtarg'], tdlamret[indices]))
-                    datas[opt] = Dataset(dict(ob=cat_ob, ac=cat_ac, atarg=cat_atarg, vtarg=cat_vtarg),
-                                         shuffle=not pi.recurrent)
-                    t_advs[opt].append(0.)
-                    continue
-
-                elif (indices.size + datas[opt].n > min_batch and datas[opt].n < min_batch) or (
-                        indices.size > min_batch and datas[opt].n < min_batch):
-
-                    oldmap = datas[opt].data_map
-                    cat_ob = np.concatenate((oldmap['ob'], ob[indices]))
-                    cat_ac = np.concatenate((oldmap['ac'], ac[indices]))
-                    cat_atarg = np.concatenate((oldmap['atarg'], atarg[indices]))
-                    cat_vtarg = np.concatenate((oldmap['vtarg'], tdlamret[indices]))
-                    datas[opt] = d = Dataset(dict(ob=cat_ob, ac=cat_ac, atarg=cat_atarg, vtarg=cat_vtarg),
-                                             shuffle=not pi.recurrent)
-
-                if (indices.size > min_batch and datas[opt].n > min_batch):
-                    datas[opt] = d = Dataset(
-                        dict(ob=ob[indices], ac=ac[indices], atarg=atarg[indices], vtarg=tdlamret[indices]),
-                        shuffle=not pi.recurrent)
-
-            elif datas[opt] == 0:
-                datas[opt] = d = Dataset(
-                    dict(ob=ob[indices], ac=ac[indices], atarg=atarg[indices], vtarg=tdlamret[indices]),
-                    shuffle=not pi.recurrent)
-                #########
-
-            optim_batchsize = optim_batchsize or ob.shape[0]
-            optim_epochs = np.clip(np.int(10 * (indices.size / (batch_size_per_episode / num_options))), 10,
-                                   10) if num_options > 1 else optim_epochs
-            print("optim epochs:", optim_epochs)
+            optim_batchsize = optim_batchsize or indices.size
+            optim_epochs = np.clip(np.int(10 * (indices.size / (batch_size_per_episode / num_options))), 10,  10) if num_options > 1 else optim_epochs
+            print("Optim Epochs:", optim_epochs)
             logger.log("Optimizing...")
             # Here we do a bunch of optimization epochs over the data
             for _ in range(optim_epochs):
                 losses = []  # list of tuples, each of which gives the loss for a minibatch
                 for batch in d.iterate_once(optim_batchsize):
-                    *newlosses, grads = lossandgrad(batch["ob"], batch["ac"], batch["atarg"], batch["vtarg"],
-                                                    cur_lrmult,
-                                                    [opt])
-                    adam.update(grads, optim_stepsize * cur_lrmult)
+                    *newlosses, grads = lossandgrad(batch["ob"], batch["ac"], batch["atarg"], batch["vtarg"], cur_lrmult, [opt])
+                    adam.update(grads, mainlr * cur_lrmult)
+                    losses.append(newlosses)
 
-        opgrads = \
-        opgrad(seg['ob'], seg['opts'], seg["last_betas"], seg["op_adv"], seg["intfc"], seg["activated_options"])[
-            0]
-        adam.update(opgrads, 1e-4)
+        opgrads = opgrad(seg['ob'], seg['opts'], seg["last_betas"], seg["op_adv"], seg["intfc"], seg["activated_options"])[0]
+        adam.update(opgrads, intlr)
 
-
-        #Update model with updated policy
-        rollouts = sample_trajectory_model_learning(pi, env, horizon=horizon, batch_size=int(batch_size_per_episode/4))
+        # Update model with updated policy
+        rollouts = sample_trajectory_model_learning(pi, env, horizon=horizon, batch_size=int(batch_size_per_episode / 4))
         print("Updating Model")
-        nmodes, segmentedRollouts, x_train, u_train, delx_train, label_train, label_t_train = hybridSegmentClustering(
-            rollouts, clustering_params)
+        nmodes, segmentedRollouts, x_train, u_train, delx_train, label_train, label_t_train = hybridSegmentClustering(rollouts, num_options, clustering_params)
         data = {'seg': seg, 'rollouts': rollouts}
         p.append(data)
         pickle.dump(p, open("option_critic_data_lr_2.pkl", "wb"))
-        pi.nmodes = nmodes
+        if seg["success"] > 10 and model_learning_flag:
+            model_learning_flag = False
+            retain_model = True
+
+        if retain_model:
+            print("Going to retain model")
+            pi.nmodes = num_options
+        else:
+            pi.nmodes = nmodes
+
         if nmodes == num_options:  # slight hack here, currently only testing with 2 modes, improve to nmodes
             # xu_train = np.hstack((x_train, u_train))
             x_train_dataset.append(x_train)
@@ -492,6 +420,3 @@ def learn(env, policy_fn, *, num_options=2,
         if MPI.COMM_WORLD.Get_rank() == 0:
             logger.dump_tabular()
 
-
-def flatten_lists(listoflists):
-    return [el for list_ in listoflists for el in list_]
