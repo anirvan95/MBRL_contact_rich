@@ -180,7 +180,7 @@ def learn(env, policy_fn, *,
         seg = sample_trajectory(pi, env, horizon=horizon, batch_size=batch_size_per_episode, stochastic=True, render=False)
         data = {'seg': seg}
         p.append(data)
-        pickle.dump(p, open("data/base_actor_critic_exp_11.pkl", "wb"))
+        pickle.dump(p, open("data/base_actor_critic_exp_12.pkl", "wb"))
 
         add_vtarg_and_adv(seg, gamma, lam)
 

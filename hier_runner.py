@@ -10,17 +10,18 @@ from collections import deque
 from common.math_util import zipsame, flatten_lists
 import time
 import pickle
-
+import math
 
 tf1.disable_v2_behavior()
 
 
+'''
 # collect trajectory for model learning
 def sample_trajectory_model_learning(pi, env, horizon=150, batch_size=3000):
     """
                 Generates rollouts for model_learning
     """
-    n_samples = 1
+    n_samples = 0
     ob = env.reset()
     ac = env.action_space.sample()
     observations = np.array([ob for _ in range(horizon)])
@@ -48,7 +49,7 @@ def sample_trajectory_model_learning(pi, env, horizon=150, batch_size=3000):
         n_samples = n_samples + 1
 
     return rollouts
-
+'''
 
 # collect trajectory
 def sample_trajectory(pi, env, horizon=150, batch_size=12000, render=False):
@@ -75,7 +76,6 @@ def sample_trajectory(pi, env, horizon=150, batch_size=12000, render=False):
     last_options = np.zeros(batch_size, 'int32')
     acs = np.array([ac for _ in range(batch_size)])
     prevacs = acs.copy()
-
     option, active_options_t = pi.get_option(ob)
     last_option = option
 
@@ -100,39 +100,38 @@ def sample_trajectory(pi, env, horizon=150, batch_size=12000, render=False):
         ac = pi.act(True, ob, option)
         obs[t] = ob
         last_options[t] = last_option
-
         news[t] = new
         opts[t] = option
         acs[t] = ac
         prevacs[t] = prevac
         beta, vpred, op_vpred, op_prob, int_fc = pi.get_preds(ob)
+
         betas.append(beta[0])
-        vpreds.append(vpred)
+        vpreds.append(vpred*(1-new))
         op_vpreds.append(op_vpred)
         int_fcs.append(int_fc)
         op_probs.append(op_prob)
-
         activated_options[t] = active_options_t
 
         ob, rew, new, _ = env.step(ac)
         if render:
+            #print("Beta function :", beta)
+            #print("Interest function: ",int_fc)
+            #print("Current option :", option)
             env.render()
+            #time.sleep(0.5)
 
         rews[t] = rew
         curr_opt_duration += 1
         # check if current option is about to end in this state
-        nbeta = pi.get_tpred([ob])
+        nbeta = pi.get_tpred(ob)
         tprob = nbeta[0][option]
 
         if tprob >= pi.term_prob:
-            # print("Current Option Terminated !! ")
-            # print("Sample number", t)
             opt_duration[option].append(curr_opt_duration)
             curr_opt_duration = 0.
             last_option = option
             option, active_options_t = pi.get_option(ob)
-            # print("Next option", option)
-            rews[t] = rews[t] + pi.rg
 
         cur_ep_ret += rew
         cur_ep_len += 1
@@ -154,7 +153,7 @@ def sample_trajectory(pi, env, horizon=150, batch_size=12000, render=False):
             option, active_options_t = pi.get_option(ob)
             last_option = option
             new_rollout = True
-
+            new = True
         t += 1
 
     betas = np.array(betas)
@@ -179,7 +178,7 @@ def add_vtarg_and_adv(seg, gamma, lam, num_options):
     """
         Compute advantage and other value functions using GAE
     """
-    new = np.append(seg["new"], 0)  # last element is only used for last vtarg, but we already zeroed it if last new = 1
+    new = np.append(seg["new"], True)  # last element is only used for last vtarg, but we already zeroed it if last new = 1
     op_vpred = np.append(seg["op_vpred"], seg["nextop_vpred"])
     T = len(seg["rew"])
     gaelam = np.empty(T, 'float32')
@@ -234,7 +233,7 @@ def learn(env, policy_fn, clustering_params, lr_params_interest, lr_params_guard
     ob_space = env.observation_space
     ac_space = env.action_space
     pi = policy_fn("pi", ob_space, ac_space)  # Construct network for new policy
-    pi.init_hybridmodel(lr_params_interest, lr_params_guard)
+    #pi.init_hybridmodel(lr_params_interest, lr_params_guard)
     oldpi = policy_fn("oldpi", ob_space, ac_space)  # Network for old policy
     atarg = tf1.placeholder(dtype=tf1.float32, shape=[None])  # Target advantage function (if applicable)
     ret = tf1.placeholder(dtype=tf1.float32, shape=[None])  # Empirical return
@@ -302,10 +301,10 @@ def learn(env, policy_fn, clustering_params, lr_params_interest, lr_params_guard
     rewbuffer = deque(maxlen=5)  # rolling buffer for episode rewards
 
     # rolling buffers for training interest and guard functions
-    label_train_dataset = deque(maxlen=1)
-    label_t_train_dataset = deque(maxlen=1)
-    xu_train_dataset = deque(maxlen=1)
-    x_train_dataset = deque(maxlen=1)
+    label_train_dataset = deque(maxlen=3)
+    label_t_train_dataset = deque(maxlen=3)
+    xu_train_dataset = deque(maxlen=3)
+    x_train_dataset = deque(maxlen=3)
     #pickel variable
     p = []
 
@@ -334,6 +333,7 @@ def learn(env, policy_fn, clustering_params, lr_params_interest, lr_params_guard
         print("Collecting samples for policy optimization !! ")
         stime = time.time()
         render = False
+
         seg = sample_trajectory(pi, env, horizon=horizon, batch_size=batch_size_per_episode, render=render)
         print("Samples collected in !! :", time.time() - stime)
 
@@ -360,30 +360,35 @@ def learn(env, policy_fn, clustering_params, lr_params_interest, lr_params_guard
             if not indices.size:
                 continue
 
-            datas[opt] = d = Dataset(dict(ob=ob[indices], ac=ac[indices], atarg=atarg[indices], vtarg=tdlamret[indices]),shuffle=not pi.recurrent)
+            datas[opt] = d = Dataset(dict(ob=ob[indices], ac=ac[indices], atarg=atarg[indices], vtarg=tdlamret[indices]), shuffle=not pi.recurrent)
 
-            optim_batchsize = optim_batchsize or indices.size
-            optim_epochs = np.clip(np.int(10 * (indices.size / (batch_size_per_episode / num_options))), 10,  10) if num_options > 1 else optim_epochs
-            print("Optim Epochs:", optim_epochs)
+            if indices.size < optim_batchsize:
+                print("Too few samples")
+                continue
+
+            optim_batchsize_corrected = optim_batchsize
+            optim_epochs_corrected = np.clip(np.int(indices.size / optim_batchsize_corrected), 1,  optim_epochs)
+            print("Optim Epochs:", optim_epochs_corrected)
             logger.log("Optimizing...")
             # Here we do a bunch of optimization epochs over the data
-            for _ in range(optim_epochs):
+            for _ in range(optim_epochs_corrected):
                 losses = []  # list of tuples, each of which gives the loss for a minibatch
-                for batch in d.iterate_once(optim_batchsize):
+                for batch in d.iterate_once(optim_batchsize_corrected):
                     *newlosses, grads = lossandgrad(batch["ob"], batch["ac"], batch["atarg"], batch["vtarg"], cur_lrmult, [opt])
                     adam.update(grads, mainlr * cur_lrmult)
                     losses.append(newlosses)
 
         opgrads = opgrad(seg['ob'], seg['opts'], seg["last_betas"], seg["op_adv"], seg["intfc"], seg["activated_options"])[0]
         adam.update(opgrads, intlr)
-
+        '''
         # Update model with updated policy
         rollouts = sample_trajectory_model_learning(pi, env, horizon=horizon, batch_size=int(batch_size_per_episode / 4))
         print("Updating Model")
         nmodes, segmentedRollouts, x_train, u_train, delx_train, label_train, label_t_train = hybridSegmentClustering(rollouts, num_options, clustering_params)
         data = {'seg': seg, 'rollouts': rollouts}
         p.append(data)
-        pickle.dump(p, open("option_critic_data_lr_2.pkl", "wb"))
+        pickle.dump(p, open("data/option_critic_data_exp_8.pkl", "wb"))
+
         if seg["success"] > 10 and model_learning_flag:
             model_learning_flag = False
             retain_model = True
@@ -401,7 +406,7 @@ def learn(env, policy_fn, clustering_params, lr_params_interest, lr_params_guard
             label_t_train_dataset.append(label_t_train)
             # xu_train_dataset.append(xu_train)
             pi.learn_hybridmodel(x_train_dataset, label_train_dataset, x_train_dataset, label_t_train_dataset)
-
+        '''
         lrlocal = (seg["ep_lens"], seg["ep_rets"])  # local values
         listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal)  # list of tuples
         lens, rews = map(flatten_lists, zip(*listoflrpairs))

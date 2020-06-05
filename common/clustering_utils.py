@@ -1,4 +1,3 @@
-import numpy as np
 from sklearn.mixture import BayesianGaussianMixture
 import sys
 from math import sqrt
@@ -8,6 +7,10 @@ from sklearn.preprocessing import StandardScaler
 
 
 def computeDistance(f1, f2):
+    """
+       Computes Bhattacharyya distance between two Gaussians
+       with diagonal covariance.
+    """
     dim = int(0.5 * (-1 + sqrt(1 + 4 * len(f1))))
     mf1 = f1[0:dim]
     mf2 = f2[0:dim]
@@ -18,8 +21,7 @@ def computeDistance(f1, f2):
 
 def bhattacharyyaGaussian(pm, pv, qm, qv):
     """
-    Computes Bhattacharyya distance between two Gaussians
-    with diagonal covariance.
+           Computes Bhattacharyya value of a Gaussian distribution.
     """
     # Difference between means pm, qm
     diff = np.expand_dims((qm - pm), axis=1)
@@ -52,7 +54,7 @@ def smoothing(indices):
     return newIndices
 
 
-def identifyTransitions(traj, window_size, weight_prior):
+def identifyTransitions(traj, window_size, weight_prior, n_components):
     """
         Identify transition by accumulating data points using sliding window and using DP GMM to find
         clusters in a single trajectory
@@ -66,7 +68,7 @@ def identifyTransitions(traj, window_size, weight_prior):
         demo_data_array[inc, :] = np.reshape(window, (1, dim * window_size))
         inc = inc + 1
 
-    estimator = BayesianGaussianMixture(n_components=2, n_init=10, max_iter=300,
+    estimator = BayesianGaussianMixture(n_components=n_components, n_init=10, max_iter=300,
                                         weight_concentration_prior=weight_prior,
                                         init_params='random', verbose=False)
     labels = estimator.fit_predict(demo_data_array)
@@ -93,17 +95,15 @@ def identifyTransitions(traj, window_size, weight_prior):
     return transitions
 
 
-def fitGaussianDistribution(traj, action, transitions):
+def fitGaussianDistribution(traj, action, transitions, minLength):
     """
         Fits gaussian distribution in each segment of the trajectory
     """
     nseg = len(transitions)
-    dim = traj.shape[1]
     dynamicMat = []
-    rmse = 0
     selectedSeg = []
     for k in range(0, nseg - 1):
-        if transitions[k + 1] - transitions[k] > 8:
+        if transitions[k + 1] - transitions[k] > minLength:
             # ensuring at least one sample is there between two transition point
             x_t_1 = traj[(transitions[k] + 1):(transitions[k + 1] + 1), :]
             x_t = traj[transitions[k]:transitions[k + 1], :]
@@ -114,17 +114,15 @@ def fitGaussianDistribution(traj, action, transitions):
             covGaussian = covGaussian + covGaussian.T
             covFeature = covGaussian.flatten()
             det = np.linalg.det(covGaussian)
-            if np.linalg.cond(covGaussian) < 1 / sys.float_info.epsilon:
-                # print("Segment Number: ", k)
-                selectedSeg.append(np.array([transitions[k], transitions[k + 1]]))
-                dynamicMat.append(np.append(meanGaussian, covGaussian))
-            else:
-                print("Singular Matrix !!! ")
+            assert np.linalg.cond(covGaussian) < 1 / sys.float_info.epsilon  # Avoid singular matrics
+            selectedSeg.append(np.array([transitions[k], transitions[k + 1]]))
+            dynamicMat.append(np.append(meanGaussian, covGaussian))
 
     return np.array(dynamicMat), np.array(selectedSeg)
 
 
-def correctMode(segTraj, mode):
+def correctMode(segTraj, mode, num_options):
+    # TODO:Include general mode based rectangular bbox based on environment, can work only for two modes
     rectBox = [-0.2, 0.75, 0.4, 0.75]
     points_in = 0
     correctedMode = 0 # default mode
@@ -137,7 +135,7 @@ def correctMode(segTraj, mode):
     return correctedMode
 
 
-def hybridSegmentClustering(rollouts, clustering_params):
+def hybridSegmentClustering(rollouts, num_options, clustering_params):
     total_rollouts = len(rollouts)
     train_rollouts = int(clustering_params['per_train']*total_rollouts)
     trajMat = []
@@ -152,9 +150,9 @@ def hybridSegmentClustering(rollouts, clustering_params):
         time_scaler = StandardScaler().fit(time_vect)
         time_std = time_scaler.transform(time_vect)
         feature_vect = np.hstack((time_std, state_std))
-        tp = identifyTransitions(state_std, clustering_params['window_size'], clustering_params['weight_prior'])
+        tp = identifyTransitions(state_std, clustering_params['window_size'], clustering_params['weight_prior'], clustering_params['n_components'])
         # fitting Gaussian Dynamic model
-        fittedModel, selTraj = fitGaussianDistribution(states[:, 0:2], action, tp)
+        fittedModel, selTraj = fitGaussianDistribution(states[:, 0:2], action, tp, clustering_params['minLength'])
         trajMat.append(np.array([rollout, selTraj]))
         if rollout == 0:
             dynamicMat = fittedModel
@@ -171,6 +169,7 @@ def hybridSegmentClustering(rollouts, clustering_params):
     print('Estimated number of noise points: %d' % n_noise_)
 
     segCount = 0
+    #TODO: Have better database/variables
     for rollout in range(0, train_rollouts):
         traj = rollouts[rollout]
         states = traj['observations']
@@ -185,7 +184,7 @@ def hybridSegmentClustering(rollouts, clustering_params):
             segTraj = states[trajMat[rollout][1][segment][0]:(trajMat[rollout][1][segment][1] + 1), :]
             segAction = action[trajMat[rollout][1][segment][0]:(trajMat[rollout][1][segment][1] + 1), :]
             segDelta = delta_traj[trajMat[rollout][1][segment][0]:(trajMat[rollout][1][segment][1] + 1), :]
-            labels[segCount] = correctMode(segTraj, labels[segCount])
+            labels[segCount] = correctMode(segTraj, labels[segCount], num_options)
 
             if labels[segCount] >= 0: #ignoring noisy clusters
 

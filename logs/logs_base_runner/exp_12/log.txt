@@ -1,0 +1,2202 @@
+Logging to /home/anirvan/MasterThesis/MBRL_contact_rich/logs/logs_base_runner/exp_12/
+********** Iteration 0 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 79       |
+| EpLenMean        | 150      |
+| EpRewMean        | -640     |
+| EpThisIter       | 79       |
+| SuccessInsertion | 0        |
+| TimeElapsed      | 31.1     |
+| TimestepsSoFar   | 1.19e+04 |
+-------------------------------
+********** Iteration 1 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 158      |
+| EpLenMean        | 150      |
+| EpRewMean        | -654     |
+| EpThisIter       | 79       |
+| SuccessInsertion | 0        |
+| TimeElapsed      | 61.4     |
+| TimestepsSoFar   | 2.37e+04 |
+-------------------------------
+********** Iteration 2 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 237      |
+| EpLenMean        | 150      |
+| EpRewMean        | -642     |
+| EpThisIter       | 79       |
+| SuccessInsertion | 0        |
+| TimeElapsed      | 91.9     |
+| TimestepsSoFar   | 3.56e+04 |
+-------------------------------
+********** Iteration 3 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 316      |
+| EpLenMean        | 150      |
+| EpRewMean        | -596     |
+| EpThisIter       | 79       |
+| SuccessInsertion | 0        |
+| TimeElapsed      | 122      |
+| TimestepsSoFar   | 4.74e+04 |
+-------------------------------
+********** Iteration 4 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 395      |
+| EpLenMean        | 150      |
+| EpRewMean        | -570     |
+| EpThisIter       | 79       |
+| SuccessInsertion | 0        |
+| TimeElapsed      | 152      |
+| TimestepsSoFar   | 5.93e+04 |
+-------------------------------
+********** Iteration 5 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 474      |
+| EpLenMean        | 150      |
+| EpRewMean        | -539     |
+| EpThisIter       | 79       |
+| SuccessInsertion | 0        |
+| TimeElapsed      | 183      |
+| TimestepsSoFar   | 7.11e+04 |
+-------------------------------
+********** Iteration 6 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 553      |
+| EpLenMean        | 150      |
+| EpRewMean        | -535     |
+| EpThisIter       | 79       |
+| SuccessInsertion | 0        |
+| TimeElapsed      | 213      |
+| TimestepsSoFar   | 8.3e+04  |
+-------------------------------
+********** Iteration 7 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 632      |
+| EpLenMean        | 150      |
+| EpRewMean        | -696     |
+| EpThisIter       | 79       |
+| SuccessInsertion | 0        |
+| TimeElapsed      | 243      |
+| TimestepsSoFar   | 9.48e+04 |
+-------------------------------
+********** Iteration 8 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 711      |
+| EpLenMean        | 150      |
+| EpRewMean        | -713     |
+| EpThisIter       | 79       |
+| SuccessInsertion | 0        |
+| TimeElapsed      | 273      |
+| TimestepsSoFar   | 1.07e+05 |
+-------------------------------
+********** Iteration 9 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 790      |
+| EpLenMean        | 150      |
+| EpRewMean        | -478     |
+| EpThisIter       | 79       |
+| SuccessInsertion | 0        |
+| TimeElapsed      | 304      |
+| TimestepsSoFar   | 1.19e+05 |
+-------------------------------
+********** Iteration 10 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 869      |
+| EpLenMean        | 150      |
+| EpRewMean        | -471     |
+| EpThisIter       | 79       |
+| SuccessInsertion | 0        |
+| TimeElapsed      | 335      |
+| TimestepsSoFar   | 1.3e+05  |
+-------------------------------
+********** Iteration 11 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 948      |
+| EpLenMean        | 150      |
+| EpRewMean        | -465     |
+| EpThisIter       | 79       |
+| SuccessInsertion | 0        |
+| TimeElapsed      | 365      |
+| TimestepsSoFar   | 1.42e+05 |
+-------------------------------
+********** Iteration 12 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.03e+03 |
+| EpLenMean        | 150      |
+| EpRewMean        | -476     |
+| EpThisIter       | 79       |
+| SuccessInsertion | 0        |
+| TimeElapsed      | 396      |
+| TimestepsSoFar   | 1.54e+05 |
+-------------------------------
+********** Iteration 13 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.11e+03 |
+| EpLenMean        | 150      |
+| EpRewMean        | -436     |
+| EpThisIter       | 79       |
+| SuccessInsertion | 0        |
+| TimeElapsed      | 427      |
+| TimestepsSoFar   | 1.66e+05 |
+-------------------------------
+********** Iteration 14 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.18e+03 |
+| EpLenMean        | 150      |
+| EpRewMean        | -399     |
+| EpThisIter       | 79       |
+| SuccessInsertion | 0        |
+| TimeElapsed      | 457      |
+| TimestepsSoFar   | 1.78e+05 |
+-------------------------------
+********** Iteration 15 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.26e+03 |
+| EpLenMean        | 150      |
+| EpRewMean        | -374     |
+| EpThisIter       | 79       |
+| SuccessInsertion | 0        |
+| TimeElapsed      | 488      |
+| TimestepsSoFar   | 1.9e+05  |
+-------------------------------
+********** Iteration 16 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.34e+03 |
+| EpLenMean        | 150      |
+| EpRewMean        | -366     |
+| EpThisIter       | 79       |
+| SuccessInsertion | 0        |
+| TimeElapsed      | 519      |
+| TimestepsSoFar   | 2.01e+05 |
+-------------------------------
+********** Iteration 17 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.42e+03 |
+| EpLenMean        | 150      |
+| EpRewMean        | -357     |
+| EpThisIter       | 79       |
+| SuccessInsertion | 0        |
+| TimeElapsed      | 550      |
+| TimestepsSoFar   | 2.13e+05 |
+-------------------------------
+********** Iteration 18 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.5e+03  |
+| EpLenMean        | 150      |
+| EpRewMean        | -352     |
+| EpThisIter       | 79       |
+| SuccessInsertion | 0        |
+| TimeElapsed      | 581      |
+| TimestepsSoFar   | 2.25e+05 |
+-------------------------------
+********** Iteration 19 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.58e+03 |
+| EpLenMean        | 150      |
+| EpRewMean        | -346     |
+| EpThisIter       | 79       |
+| SuccessInsertion | 0        |
+| TimeElapsed      | 611      |
+| TimestepsSoFar   | 2.37e+05 |
+-------------------------------
+********** Iteration 20 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.66e+03 |
+| EpLenMean        | 150      |
+| EpRewMean        | -353     |
+| EpThisIter       | 79       |
+| SuccessInsertion | 0        |
+| TimeElapsed      | 642      |
+| TimestepsSoFar   | 2.49e+05 |
+-------------------------------
+********** Iteration 21 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.74e+03 |
+| EpLenMean        | 150      |
+| EpRewMean        | -331     |
+| EpThisIter       | 79       |
+| SuccessInsertion | 0        |
+| TimeElapsed      | 673      |
+| TimestepsSoFar   | 2.61e+05 |
+-------------------------------
+********** Iteration 22 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.82e+03 |
+| EpLenMean        | 150      |
+| EpRewMean        | -331     |
+| EpThisIter       | 79       |
+| SuccessInsertion | 1        |
+| TimeElapsed      | 703      |
+| TimestepsSoFar   | 2.73e+05 |
+-------------------------------
+********** Iteration 23 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.9e+03  |
+| EpLenMean        | 150      |
+| EpRewMean        | -319     |
+| EpThisIter       | 79       |
+| SuccessInsertion | 0        |
+| TimeElapsed      | 734      |
+| TimestepsSoFar   | 2.84e+05 |
+-------------------------------
+********** Iteration 24 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.98e+03 |
+| EpLenMean        | 150      |
+| EpRewMean        | -320     |
+| EpThisIter       | 79       |
+| SuccessInsertion | 0        |
+| TimeElapsed      | 765      |
+| TimestepsSoFar   | 2.96e+05 |
+-------------------------------
+********** Iteration 25 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.05e+03 |
+| EpLenMean        | 150      |
+| EpRewMean        | -314     |
+| EpThisIter       | 79       |
+| SuccessInsertion | 0        |
+| TimeElapsed      | 795      |
+| TimestepsSoFar   | 3.08e+05 |
+-------------------------------
+********** Iteration 26 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.13e+03 |
+| EpLenMean        | 150      |
+| EpRewMean        | -306     |
+| EpThisIter       | 79       |
+| SuccessInsertion | 0        |
+| TimeElapsed      | 826      |
+| TimestepsSoFar   | 3.2e+05  |
+-------------------------------
+********** Iteration 27 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.21e+03 |
+| EpLenMean        | 150      |
+| EpRewMean        | -319     |
+| EpThisIter       | 79       |
+| SuccessInsertion | 0        |
+| TimeElapsed      | 857      |
+| TimestepsSoFar   | 3.32e+05 |
+-------------------------------
+********** Iteration 28 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.29e+03 |
+| EpLenMean        | 150      |
+| EpRewMean        | -312     |
+| EpThisIter       | 79       |
+| SuccessInsertion | 0        |
+| TimeElapsed      | 887      |
+| TimestepsSoFar   | 3.44e+05 |
+-------------------------------
+********** Iteration 29 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.37e+03 |
+| EpLenMean        | 150      |
+| EpRewMean        | -317     |
+| EpThisIter       | 80       |
+| SuccessInsertion | 1        |
+| TimeElapsed      | 918      |
+| TimestepsSoFar   | 3.56e+05 |
+-------------------------------
+********** Iteration 30 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.45e+03 |
+| EpLenMean        | 150      |
+| EpRewMean        | -307     |
+| EpThisIter       | 82       |
+| SuccessInsertion | 3        |
+| TimeElapsed      | 948      |
+| TimestepsSoFar   | 3.67e+05 |
+-------------------------------
+********** Iteration 31 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.54e+03 |
+| EpLenMean        | 150      |
+| EpRewMean        | -307     |
+| EpThisIter       | 82       |
+| SuccessInsertion | 3        |
+| TimeElapsed      | 979      |
+| TimestepsSoFar   | 3.79e+05 |
+-------------------------------
+********** Iteration 32 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.62e+03 |
+| EpLenMean        | 150      |
+| EpRewMean        | -320     |
+| EpThisIter       | 86       |
+| SuccessInsertion | 7        |
+| TimeElapsed      | 1.01e+03 |
+| TimestepsSoFar   | 3.91e+05 |
+-------------------------------
+********** Iteration 33 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.71e+03 |
+| EpLenMean        | 150      |
+| EpRewMean        | -318     |
+| EpThisIter       | 86       |
+| SuccessInsertion | 7        |
+| TimeElapsed      | 1.04e+03 |
+| TimestepsSoFar   | 4.03e+05 |
+-------------------------------
+********** Iteration 34 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.79e+03 |
+| EpLenMean        | 150      |
+| EpRewMean        | -337     |
+| EpThisIter       | 85       |
+| SuccessInsertion | 6        |
+| TimeElapsed      | 1.07e+03 |
+| TimestepsSoFar   | 4.15e+05 |
+-------------------------------
+********** Iteration 35 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.88e+03 |
+| EpLenMean        | 120      |
+| EpRewMean        | -237     |
+| EpThisIter       | 89       |
+| SuccessInsertion | 10       |
+| TimeElapsed      | 1.1e+03  |
+| TimestepsSoFar   | 4.27e+05 |
+-------------------------------
+********** Iteration 36 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.97e+03 |
+| EpLenMean        | 150      |
+| EpRewMean        | -317     |
+| EpThisIter       | 91       |
+| SuccessInsertion | 12       |
+| TimeElapsed      | 1.13e+03 |
+| TimestepsSoFar   | 4.38e+05 |
+-------------------------------
+********** Iteration 37 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 3.08e+03 |
+| EpLenMean        | 137      |
+| EpRewMean        | -281     |
+| EpThisIter       | 103      |
+| SuccessInsertion | 24       |
+| TimeElapsed      | 1.16e+03 |
+| TimestepsSoFar   | 4.5e+05  |
+-------------------------------
+********** Iteration 38 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 3.18e+03 |
+| EpLenMean        | 90       |
+| EpRewMean        | -169     |
+| EpThisIter       | 102      |
+| SuccessInsertion | 23       |
+| TimeElapsed      | 1.19e+03 |
+| TimestepsSoFar   | 4.62e+05 |
+-------------------------------
+********** Iteration 39 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 3.29e+03 |
+| EpLenMean        | 115      |
+| EpRewMean        | -207     |
+| EpThisIter       | 110      |
+| SuccessInsertion | 31       |
+| TimeElapsed      | 1.22e+03 |
+| TimestepsSoFar   | 4.74e+05 |
+-------------------------------
+********** Iteration 40 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 3.4e+03  |
+| EpLenMean        | 120      |
+| EpRewMean        | -255     |
+| EpThisIter       | 115      |
+| SuccessInsertion | 36       |
+| TimeElapsed      | 1.25e+03 |
+| TimestepsSoFar   | 4.86e+05 |
+-------------------------------
+********** Iteration 41 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 3.52e+03 |
+| EpLenMean        | 90       |
+| EpRewMean        | -173     |
+| EpThisIter       | 119      |
+| SuccessInsertion | 40       |
+| TimeElapsed      | 1.28e+03 |
+| TimestepsSoFar   | 4.98e+05 |
+-------------------------------
+********** Iteration 42 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 3.65e+03 |
+| EpLenMean        | 102      |
+| EpRewMean        | -247     |
+| EpThisIter       | 125      |
+| SuccessInsertion | 46       |
+| TimeElapsed      | 1.31e+03 |
+| TimestepsSoFar   | 5.1e+05  |
+-------------------------------
+********** Iteration 43 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 3.76e+03 |
+| EpLenMean        | 136      |
+| EpRewMean        | -300     |
+| EpThisIter       | 116      |
+| SuccessInsertion | 37       |
+| TimeElapsed      | 1.34e+03 |
+| TimestepsSoFar   | 5.22e+05 |
+-------------------------------
+********** Iteration 44 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 3.89e+03 |
+| EpLenMean        | 80.2     |
+| EpRewMean        | -129     |
+| EpThisIter       | 125      |
+| SuccessInsertion | 46       |
+| TimeElapsed      | 1.37e+03 |
+| TimestepsSoFar   | 5.34e+05 |
+-------------------------------
+********** Iteration 45 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 4.02e+03 |
+| EpLenMean        | 109      |
+| EpRewMean        | -218     |
+| EpThisIter       | 130      |
+| SuccessInsertion | 52       |
+| TimeElapsed      | 1.4e+03  |
+| TimestepsSoFar   | 5.46e+05 |
+-------------------------------
+********** Iteration 46 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 4.15e+03 |
+| EpLenMean        | 90       |
+| EpRewMean        | -173     |
+| EpThisIter       | 130      |
+| SuccessInsertion | 51       |
+| TimeElapsed      | 1.43e+03 |
+| TimestepsSoFar   | 5.57e+05 |
+-------------------------------
+********** Iteration 47 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 4.28e+03 |
+| EpLenMean        | 105      |
+| EpRewMean        | -235     |
+| EpThisIter       | 138      |
+| SuccessInsertion | 60       |
+| TimeElapsed      | 1.47e+03 |
+| TimestepsSoFar   | 5.69e+05 |
+-------------------------------
+********** Iteration 48 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 4.42e+03 |
+| EpLenMean        | 75.8     |
+| EpRewMean        | -152     |
+| EpThisIter       | 135      |
+| SuccessInsertion | 61       |
+| TimeElapsed      | 1.5e+03  |
+| TimestepsSoFar   | 5.81e+05 |
+-------------------------------
+********** Iteration 49 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 4.56e+03 |
+| EpLenMean        | 89.8     |
+| EpRewMean        | -186     |
+| EpThisIter       | 144      |
+| SuccessInsertion | 70       |
+| TimeElapsed      | 1.53e+03 |
+| TimestepsSoFar   | 5.93e+05 |
+-------------------------------
+********** Iteration 50 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 4.7e+03  |
+| EpLenMean        | 150      |
+| EpRewMean        | -383     |
+| EpThisIter       | 138      |
+| SuccessInsertion | 64       |
+| TimeElapsed      | 1.56e+03 |
+| TimestepsSoFar   | 6.05e+05 |
+-------------------------------
+********** Iteration 51 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 4.84e+03 |
+| EpLenMean        | 87.4     |
+| EpRewMean        | -176     |
+| EpThisIter       | 134      |
+| SuccessInsertion | 57       |
+| TimeElapsed      | 1.59e+03 |
+| TimestepsSoFar   | 6.17e+05 |
+-------------------------------
+********** Iteration 52 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 4.97e+03 |
+| EpLenMean        | 90       |
+| EpRewMean        | -179     |
+| EpThisIter       | 133      |
+| SuccessInsertion | 60       |
+| TimeElapsed      | 1.62e+03 |
+| TimestepsSoFar   | 6.29e+05 |
+-------------------------------
+********** Iteration 53 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 5.12e+03 |
+| EpLenMean        | 118      |
+| EpRewMean        | -263     |
+| EpThisIter       | 148      |
+| SuccessInsertion | 74       |
+| TimeElapsed      | 1.65e+03 |
+| TimestepsSoFar   | 6.41e+05 |
+-------------------------------
+********** Iteration 54 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 5.26e+03 |
+| EpLenMean        | 93.8     |
+| EpRewMean        | -183     |
+| EpThisIter       | 142      |
+| SuccessInsertion | 68       |
+| TimeElapsed      | 1.68e+03 |
+| TimestepsSoFar   | 6.53e+05 |
+-------------------------------
+********** Iteration 55 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 5.4e+03  |
+| EpLenMean        | 78       |
+| EpRewMean        | -123     |
+| EpThisIter       | 143      |
+| SuccessInsertion | 69       |
+| TimeElapsed      | 1.71e+03 |
+| TimestepsSoFar   | 6.65e+05 |
+-------------------------------
+********** Iteration 56 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 5.54e+03 |
+| EpLenMean        | 76.6     |
+| EpRewMean        | -119     |
+| EpThisIter       | 140      |
+| SuccessInsertion | 63       |
+| TimeElapsed      | 1.74e+03 |
+| TimestepsSoFar   | 6.77e+05 |
+-------------------------------
+********** Iteration 57 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 5.69e+03 |
+| EpLenMean        | 90       |
+| EpRewMean        | -170     |
+| EpThisIter       | 152      |
+| SuccessInsertion | 78       |
+| TimeElapsed      | 1.77e+03 |
+| TimestepsSoFar   | 6.88e+05 |
+-------------------------------
+********** Iteration 58 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 5.84e+03 |
+| EpLenMean        | 89.6     |
+| EpRewMean        | -173     |
+| EpThisIter       | 150      |
+| SuccessInsertion | 74       |
+| TimeElapsed      | 1.8e+03  |
+| TimestepsSoFar   | 7e+05    |
+-------------------------------
+********** Iteration 59 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 5.99e+03 |
+| EpLenMean        | 103      |
+| EpRewMean        | -232     |
+| EpThisIter       | 148      |
+| SuccessInsertion | 79       |
+| TimeElapsed      | 1.83e+03 |
+| TimestepsSoFar   | 7.12e+05 |
+-------------------------------
+********** Iteration 60 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 6.14e+03 |
+| EpLenMean        | 74.6     |
+| EpRewMean        | -112     |
+| EpThisIter       | 149      |
+| SuccessInsertion | 75       |
+| TimeElapsed      | 1.86e+03 |
+| TimestepsSoFar   | 7.24e+05 |
+-------------------------------
+********** Iteration 61 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 6.28e+03 |
+| EpLenMean        | 90       |
+| EpRewMean        | -175     |
+| EpThisIter       | 140      |
+| SuccessInsertion | 65       |
+| TimeElapsed      | 1.89e+03 |
+| TimestepsSoFar   | 7.36e+05 |
+-------------------------------
+********** Iteration 62 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 6.42e+03 |
+| EpLenMean        | 90       |
+| EpRewMean        | -209     |
+| EpThisIter       | 139      |
+| SuccessInsertion | 67       |
+| TimeElapsed      | 1.92e+03 |
+| TimestepsSoFar   | 7.48e+05 |
+-------------------------------
+********** Iteration 63 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 6.57e+03 |
+| EpLenMean        | 60       |
+| EpRewMean        | -78.4    |
+| EpThisIter       | 154      |
+| SuccessInsertion | 78       |
+| TimeElapsed      | 1.95e+03 |
+| TimestepsSoFar   | 7.6e+05  |
+-------------------------------
+********** Iteration 64 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 6.72e+03 |
+| EpLenMean        | 77.6     |
+| EpRewMean        | -127     |
+| EpThisIter       | 145      |
+| SuccessInsertion | 67       |
+| TimeElapsed      | 1.98e+03 |
+| TimestepsSoFar   | 7.72e+05 |
+-------------------------------
+********** Iteration 65 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 6.87e+03 |
+| EpLenMean        | 61.6     |
+| EpRewMean        | -87.1    |
+| EpThisIter       | 152      |
+| SuccessInsertion | 76       |
+| TimeElapsed      | 2.01e+03 |
+| TimestepsSoFar   | 7.84e+05 |
+-------------------------------
+********** Iteration 66 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 7.03e+03 |
+| EpLenMean        | 60       |
+| EpRewMean        | -87.4    |
+| EpThisIter       | 158      |
+| SuccessInsertion | 83       |
+| TimeElapsed      | 2.04e+03 |
+| TimestepsSoFar   | 7.96e+05 |
+-------------------------------
+********** Iteration 67 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 7.18e+03 |
+| EpLenMean        | 104      |
+| EpRewMean        | -232     |
+| EpThisIter       | 147      |
+| SuccessInsertion | 69       |
+| TimeElapsed      | 2.07e+03 |
+| TimestepsSoFar   | 8.08e+05 |
+-------------------------------
+********** Iteration 68 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 7.33e+03 |
+| EpLenMean        | 48.4     |
+| EpRewMean        | -57.9    |
+| EpThisIter       | 155      |
+| SuccessInsertion | 80       |
+| TimeElapsed      | 2.1e+03  |
+| TimestepsSoFar   | 8.19e+05 |
+-------------------------------
+********** Iteration 69 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 7.49e+03 |
+| EpLenMean        | 135      |
+| EpRewMean        | -352     |
+| EpThisIter       | 161      |
+| SuccessInsertion | 83       |
+| TimeElapsed      | 2.13e+03 |
+| TimestepsSoFar   | 8.31e+05 |
+-------------------------------
+********** Iteration 70 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 7.65e+03 |
+| EpLenMean        | 55.2     |
+| EpRewMean        | -53.8    |
+| EpThisIter       | 157      |
+| SuccessInsertion | 79       |
+| TimeElapsed      | 2.16e+03 |
+| TimestepsSoFar   | 8.43e+05 |
+-------------------------------
+********** Iteration 71 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 7.8e+03  |
+| EpLenMean        | 58.6     |
+| EpRewMean        | -64.1    |
+| EpThisIter       | 147      |
+| SuccessInsertion | 68       |
+| TimeElapsed      | 2.19e+03 |
+| TimestepsSoFar   | 8.55e+05 |
+-------------------------------
+********** Iteration 72 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 7.96e+03 |
+| EpLenMean        | 86.4     |
+| EpRewMean        | -180     |
+| EpThisIter       | 169      |
+| SuccessInsertion | 94       |
+| TimeElapsed      | 2.22e+03 |
+| TimestepsSoFar   | 8.67e+05 |
+-------------------------------
+********** Iteration 73 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 8.13e+03 |
+| EpLenMean        | 47       |
+| EpRewMean        | -63      |
+| EpThisIter       | 169      |
+| SuccessInsertion | 91       |
+| TimeElapsed      | 2.26e+03 |
+| TimestepsSoFar   | 8.79e+05 |
+-------------------------------
+********** Iteration 74 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 8.28e+03 |
+| EpLenMean        | 76.6     |
+| EpRewMean        | -174     |
+| EpThisIter       | 148      |
+| SuccessInsertion | 69       |
+| TimeElapsed      | 2.29e+03 |
+| TimestepsSoFar   | 8.91e+05 |
+-------------------------------
+********** Iteration 75 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 8.44e+03 |
+| EpLenMean        | 57.2     |
+| EpRewMean        | -65.7    |
+| EpThisIter       | 160      |
+| SuccessInsertion | 82       |
+| TimeElapsed      | 2.32e+03 |
+| TimestepsSoFar   | 9.03e+05 |
+-------------------------------
+********** Iteration 76 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 8.61e+03 |
+| EpLenMean        | 55.8     |
+| EpRewMean        | -58.9    |
+| EpThisIter       | 167      |
+| SuccessInsertion | 89       |
+| TimeElapsed      | 2.35e+03 |
+| TimestepsSoFar   | 9.15e+05 |
+-------------------------------
+********** Iteration 77 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 8.76e+03 |
+| EpLenMean        | 105      |
+| EpRewMean        | -261     |
+| EpThisIter       | 154      |
+| SuccessInsertion | 80       |
+| TimeElapsed      | 2.38e+03 |
+| TimestepsSoFar   | 9.27e+05 |
+-------------------------------
+********** Iteration 78 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 8.92e+03 |
+| EpLenMean        | 60.8     |
+| EpRewMean        | -81.6    |
+| EpThisIter       | 154      |
+| SuccessInsertion | 75       |
+| TimeElapsed      | 2.41e+03 |
+| TimestepsSoFar   | 9.39e+05 |
+-------------------------------
+********** Iteration 79 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 9.07e+03 |
+| EpLenMean        | 93.2     |
+| EpRewMean        | -217     |
+| EpThisIter       | 155      |
+| SuccessInsertion | 78       |
+| TimeElapsed      | 2.44e+03 |
+| TimestepsSoFar   | 9.51e+05 |
+-------------------------------
+********** Iteration 80 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 9.24e+03 |
+| EpLenMean        | 108      |
+| EpRewMean        | -255     |
+| EpThisIter       | 171      |
+| SuccessInsertion | 93       |
+| TimeElapsed      | 2.47e+03 |
+| TimestepsSoFar   | 9.63e+05 |
+-------------------------------
+********** Iteration 81 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 9.41e+03 |
+| EpLenMean        | 47.6     |
+| EpRewMean        | -63.1    |
+| EpThisIter       | 165      |
+| SuccessInsertion | 86       |
+| TimeElapsed      | 2.5e+03  |
+| TimestepsSoFar   | 9.74e+05 |
+-------------------------------
+********** Iteration 82 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 9.58e+03 |
+| EpLenMean        | 58       |
+| EpRewMean        | -55.4    |
+| EpThisIter       | 172      |
+| SuccessInsertion | 94       |
+| TimeElapsed      | 2.53e+03 |
+| TimestepsSoFar   | 9.86e+05 |
+-------------------------------
+********** Iteration 83 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 9.75e+03 |
+| EpLenMean        | 58       |
+| EpRewMean        | -75.3    |
+| EpThisIter       | 168      |
+| SuccessInsertion | 89       |
+| TimeElapsed      | 2.56e+03 |
+| TimestepsSoFar   | 9.98e+05 |
+-------------------------------
+********** Iteration 84 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 9.91e+03 |
+| EpLenMean        | 90.4     |
+| EpRewMean        | -169     |
+| EpThisIter       | 161      |
+| SuccessInsertion | 82       |
+| TimeElapsed      | 2.59e+03 |
+| TimestepsSoFar   | 1.01e+06 |
+-------------------------------
+********** Iteration 85 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.01e+04 |
+| EpLenMean        | 55.8     |
+| EpRewMean        | -52.2    |
+| EpThisIter       | 184      |
+| SuccessInsertion | 106      |
+| TimeElapsed      | 2.62e+03 |
+| TimestepsSoFar   | 1.02e+06 |
+-------------------------------
+********** Iteration 86 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.03e+04 |
+| EpLenMean        | 60       |
+| EpRewMean        | -79.6    |
+| EpThisIter       | 185      |
+| SuccessInsertion | 108      |
+| TimeElapsed      | 2.65e+03 |
+| TimestepsSoFar   | 1.03e+06 |
+-------------------------------
+********** Iteration 87 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.05e+04 |
+| EpLenMean        | 75       |
+| EpRewMean        | -136     |
+| EpThisIter       | 184      |
+| SuccessInsertion | 107      |
+| TimeElapsed      | 2.68e+03 |
+| TimestepsSoFar   | 1.05e+06 |
+-------------------------------
+********** Iteration 88 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.06e+04 |
+| EpLenMean        | 86       |
+| EpRewMean        | -119     |
+| EpThisIter       | 182      |
+| SuccessInsertion | 103      |
+| TimeElapsed      | 2.72e+03 |
+| TimestepsSoFar   | 1.06e+06 |
+-------------------------------
+********** Iteration 89 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.08e+04 |
+| EpLenMean        | 73.8     |
+| EpRewMean        | -104     |
+| EpThisIter       | 191      |
+| SuccessInsertion | 113      |
+| TimeElapsed      | 2.75e+03 |
+| TimestepsSoFar   | 1.07e+06 |
+-------------------------------
+********** Iteration 90 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.1e+04  |
+| EpLenMean        | 60.8     |
+| EpRewMean        | -81.9    |
+| EpThisIter       | 183      |
+| SuccessInsertion | 104      |
+| TimeElapsed      | 2.78e+03 |
+| TimestepsSoFar   | 1.08e+06 |
+-------------------------------
+********** Iteration 91 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.12e+04 |
+| EpLenMean        | 57.8     |
+| EpRewMean        | -49.7    |
+| EpThisIter       | 185      |
+| SuccessInsertion | 106      |
+| TimeElapsed      | 2.81e+03 |
+| TimestepsSoFar   | 1.09e+06 |
+-------------------------------
+********** Iteration 92 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.14e+04 |
+| EpLenMean        | 48.8     |
+| EpRewMean        | -69.2    |
+| EpThisIter       | 191      |
+| SuccessInsertion | 112      |
+| TimeElapsed      | 2.84e+03 |
+| TimestepsSoFar   | 1.11e+06 |
+-------------------------------
+********** Iteration 93 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.16e+04 |
+| EpLenMean        | 71.4     |
+| EpRewMean        | -96.6    |
+| EpThisIter       | 197      |
+| SuccessInsertion | 120      |
+| TimeElapsed      | 2.87e+03 |
+| TimestepsSoFar   | 1.12e+06 |
+-------------------------------
+********** Iteration 94 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.18e+04 |
+| EpLenMean        | 73.8     |
+| EpRewMean        | -101     |
+| EpThisIter       | 201      |
+| SuccessInsertion | 122      |
+| TimeElapsed      | 2.9e+03  |
+| TimestepsSoFar   | 1.13e+06 |
+-------------------------------
+********** Iteration 95 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.2e+04  |
+| EpLenMean        | 56       |
+| EpRewMean        | -59.8    |
+| EpThisIter       | 188      |
+| SuccessInsertion | 110      |
+| TimeElapsed      | 2.93e+03 |
+| TimestepsSoFar   | 1.14e+06 |
+-------------------------------
+********** Iteration 96 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.22e+04 |
+| EpLenMean        | 120      |
+| EpRewMean        | -202     |
+| EpThisIter       | 189      |
+| SuccessInsertion | 110      |
+| TimeElapsed      | 2.96e+03 |
+| TimestepsSoFar   | 1.15e+06 |
+-------------------------------
+********** Iteration 97 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.24e+04 |
+| EpLenMean        | 60       |
+| EpRewMean        | -81.1    |
+| EpThisIter       | 208      |
+| SuccessInsertion | 130      |
+| TimeElapsed      | 2.99e+03 |
+| TimestepsSoFar   | 1.17e+06 |
+-------------------------------
+********** Iteration 98 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.26e+04 |
+| EpLenMean        | 73       |
+| EpRewMean        | -96.8    |
+| EpThisIter       | 203      |
+| SuccessInsertion | 125      |
+| TimeElapsed      | 3.02e+03 |
+| TimestepsSoFar   | 1.18e+06 |
+-------------------------------
+********** Iteration 99 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.28e+04 |
+| EpLenMean        | 74.6     |
+| EpRewMean        | -116     |
+| EpThisIter       | 204      |
+| SuccessInsertion | 126      |
+| TimeElapsed      | 3.06e+03 |
+| TimestepsSoFar   | 1.19e+06 |
+-------------------------------
+********** Iteration 100 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.3e+04  |
+| EpLenMean        | 55.2     |
+| EpRewMean        | -51.5    |
+| EpThisIter       | 210      |
+| SuccessInsertion | 131      |
+| TimeElapsed      | 3.09e+03 |
+| TimestepsSoFar   | 1.2e+06  |
+-------------------------------
+********** Iteration 101 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.32e+04 |
+| EpLenMean        | 52.4     |
+| EpRewMean        | -51.8    |
+| EpThisIter       | 207      |
+| SuccessInsertion | 129      |
+| TimeElapsed      | 3.12e+03 |
+| TimestepsSoFar   | 1.21e+06 |
+-------------------------------
+********** Iteration 102 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.34e+04 |
+| EpLenMean        | 55.2     |
+| EpRewMean        | -54.5    |
+| EpThisIter       | 213      |
+| SuccessInsertion | 134      |
+| TimeElapsed      | 3.15e+03 |
+| TimestepsSoFar   | 1.23e+06 |
+-------------------------------
+********** Iteration 103 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.36e+04 |
+| EpLenMean        | 47.4     |
+| EpRewMean        | -64.8    |
+| EpThisIter       | 206      |
+| SuccessInsertion | 127      |
+| TimeElapsed      | 3.18e+03 |
+| TimestepsSoFar   | 1.24e+06 |
+-------------------------------
+********** Iteration 104 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.38e+04 |
+| EpLenMean        | 54       |
+| EpRewMean        | -51.4    |
+| EpThisIter       | 205      |
+| SuccessInsertion | 126      |
+| TimeElapsed      | 3.21e+03 |
+| TimestepsSoFar   | 1.25e+06 |
+-------------------------------
+********** Iteration 105 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.4e+04  |
+| EpLenMean        | 54.2     |
+| EpRewMean        | -50.9    |
+| EpThisIter       | 216      |
+| SuccessInsertion | 137      |
+| TimeElapsed      | 3.24e+03 |
+| TimestepsSoFar   | 1.26e+06 |
+-------------------------------
+********** Iteration 106 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.43e+04 |
+| EpLenMean        | 69.6     |
+| EpRewMean        | -89.1    |
+| EpThisIter       | 223      |
+| SuccessInsertion | 144      |
+| TimeElapsed      | 3.27e+03 |
+| TimestepsSoFar   | 1.27e+06 |
+-------------------------------
+********** Iteration 107 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.45e+04 |
+| EpLenMean        | 70.6     |
+| EpRewMean        | -92      |
+| EpThisIter       | 215      |
+| SuccessInsertion | 136      |
+| TimeElapsed      | 3.3e+03  |
+| TimestepsSoFar   | 1.28e+06 |
+-------------------------------
+********** Iteration 108 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.47e+04 |
+| EpLenMean        | 52.8     |
+| EpRewMean        | -50.2    |
+| EpThisIter       | 220      |
+| SuccessInsertion | 141      |
+| TimeElapsed      | 3.33e+03 |
+| TimestepsSoFar   | 1.3e+06  |
+-------------------------------
+********** Iteration 109 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.49e+04 |
+| EpLenMean        | 54       |
+| EpRewMean        | -53.9    |
+| EpThisIter       | 223      |
+| SuccessInsertion | 144      |
+| TimeElapsed      | 3.36e+03 |
+| TimestepsSoFar   | 1.31e+06 |
+-------------------------------
+********** Iteration 110 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.51e+04 |
+| EpLenMean        | 47.8     |
+| EpRewMean        | -64.8    |
+| EpThisIter       | 224      |
+| SuccessInsertion | 145      |
+| TimeElapsed      | 3.4e+03  |
+| TimestepsSoFar   | 1.32e+06 |
+-------------------------------
+********** Iteration 111 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.54e+04 |
+| EpLenMean        | 70.6     |
+| EpRewMean        | -92      |
+| EpThisIter       | 225      |
+| SuccessInsertion | 146      |
+| TimeElapsed      | 3.43e+03 |
+| TimestepsSoFar   | 1.33e+06 |
+-------------------------------
+********** Iteration 112 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.56e+04 |
+| EpLenMean        | 52.6     |
+| EpRewMean        | -49      |
+| EpThisIter       | 229      |
+| SuccessInsertion | 150      |
+| TimeElapsed      | 3.46e+03 |
+| TimestepsSoFar   | 1.34e+06 |
+-------------------------------
+********** Iteration 113 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.58e+04 |
+| EpLenMean        | 53.6     |
+| EpRewMean        | -52.1    |
+| EpThisIter       | 226      |
+| SuccessInsertion | 147      |
+| TimeElapsed      | 3.49e+03 |
+| TimestepsSoFar   | 1.36e+06 |
+-------------------------------
+********** Iteration 114 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.61e+04 |
+| EpLenMean        | 72       |
+| EpRewMean        | -92      |
+| EpThisIter       | 225      |
+| SuccessInsertion | 146      |
+| TimeElapsed      | 3.52e+03 |
+| TimestepsSoFar   | 1.37e+06 |
+-------------------------------
+********** Iteration 115 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.63e+04 |
+| EpLenMean        | 52.6     |
+| EpRewMean        | -51.5    |
+| EpThisIter       | 225      |
+| SuccessInsertion | 146      |
+| TimeElapsed      | 3.55e+03 |
+| TimestepsSoFar   | 1.38e+06 |
+-------------------------------
+********** Iteration 116 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.65e+04 |
+| EpLenMean        | 51.8     |
+| EpRewMean        | -48.7    |
+| EpThisIter       | 227      |
+| SuccessInsertion | 148      |
+| TimeElapsed      | 3.58e+03 |
+| TimestepsSoFar   | 1.39e+06 |
+-------------------------------
+********** Iteration 117 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.67e+04 |
+| EpLenMean        | 53.4     |
+| EpRewMean        | -50.2    |
+| EpThisIter       | 225      |
+| SuccessInsertion | 146      |
+| TimeElapsed      | 3.61e+03 |
+| TimestepsSoFar   | 1.4e+06  |
+-------------------------------
+********** Iteration 118 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.7e+04  |
+| EpLenMean        | 53.2     |
+| EpRewMean        | -51.3    |
+| EpThisIter       | 224      |
+| SuccessInsertion | 145      |
+| TimeElapsed      | 3.64e+03 |
+| TimestepsSoFar   | 1.42e+06 |
+-------------------------------
+********** Iteration 119 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.72e+04 |
+| EpLenMean        | 51.6     |
+| EpRewMean        | -49.4    |
+| EpThisIter       | 233      |
+| SuccessInsertion | 154      |
+| TimeElapsed      | 3.67e+03 |
+| TimestepsSoFar   | 1.43e+06 |
+-------------------------------
+********** Iteration 120 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.74e+04 |
+| EpLenMean        | 53.6     |
+| EpRewMean        | -56.5    |
+| EpThisIter       | 229      |
+| SuccessInsertion | 150      |
+| TimeElapsed      | 3.71e+03 |
+| TimestepsSoFar   | 1.44e+06 |
+-------------------------------
+********** Iteration 121 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.77e+04 |
+| EpLenMean        | 53.6     |
+| EpRewMean        | -52.9    |
+| EpThisIter       | 237      |
+| SuccessInsertion | 158      |
+| TimeElapsed      | 3.74e+03 |
+| TimestepsSoFar   | 1.45e+06 |
+-------------------------------
+********** Iteration 122 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.79e+04 |
+| EpLenMean        | 52.2     |
+| EpRewMean        | -43.6    |
+| EpThisIter       | 227      |
+| SuccessInsertion | 148      |
+| TimeElapsed      | 3.77e+03 |
+| TimestepsSoFar   | 1.46e+06 |
+-------------------------------
+********** Iteration 123 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.81e+04 |
+| EpLenMean        | 51.8     |
+| EpRewMean        | -50.6    |
+| EpThisIter       | 231      |
+| SuccessInsertion | 152      |
+| TimeElapsed      | 3.8e+03  |
+| TimestepsSoFar   | 1.48e+06 |
+-------------------------------
+********** Iteration 124 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.83e+04 |
+| EpLenMean        | 59.8     |
+| EpRewMean        | -80.2    |
+| EpThisIter       | 225      |
+| SuccessInsertion | 146      |
+| TimeElapsed      | 3.83e+03 |
+| TimestepsSoFar   | 1.49e+06 |
+-------------------------------
+********** Iteration 125 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.86e+04 |
+| EpLenMean        | 51.6     |
+| EpRewMean        | -46.9    |
+| EpThisIter       | 229      |
+| SuccessInsertion | 150      |
+| TimeElapsed      | 3.86e+03 |
+| TimestepsSoFar   | 1.5e+06  |
+-------------------------------
+********** Iteration 126 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.88e+04 |
+| EpLenMean        | 53.6     |
+| EpRewMean        | -51.2    |
+| EpThisIter       | 228      |
+| SuccessInsertion | 149      |
+| TimeElapsed      | 3.89e+03 |
+| TimestepsSoFar   | 1.51e+06 |
+-------------------------------
+********** Iteration 127 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.9e+04  |
+| EpLenMean        | 52.6     |
+| EpRewMean        | -47.5    |
+| EpThisIter       | 229      |
+| SuccessInsertion | 150      |
+| TimeElapsed      | 3.92e+03 |
+| TimestepsSoFar   | 1.52e+06 |
+-------------------------------
+********** Iteration 128 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.92e+04 |
+| EpLenMean        | 52.2     |
+| EpRewMean        | -47.8    |
+| EpThisIter       | 229      |
+| SuccessInsertion | 150      |
+| TimeElapsed      | 3.95e+03 |
+| TimestepsSoFar   | 1.54e+06 |
+-------------------------------
+********** Iteration 129 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.95e+04 |
+| EpLenMean        | 52.4     |
+| EpRewMean        | -46.7    |
+| EpThisIter       | 230      |
+| SuccessInsertion | 151      |
+| TimeElapsed      | 3.98e+03 |
+| TimestepsSoFar   | 1.55e+06 |
+-------------------------------
+********** Iteration 130 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.97e+04 |
+| EpLenMean        | 52.4     |
+| EpRewMean        | -49      |
+| EpThisIter       | 221      |
+| SuccessInsertion | 142      |
+| TimeElapsed      | 4.01e+03 |
+| TimestepsSoFar   | 1.56e+06 |
+-------------------------------
+********** Iteration 131 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 1.99e+04 |
+| EpLenMean        | 52.6     |
+| EpRewMean        | -48.5    |
+| EpThisIter       | 232      |
+| SuccessInsertion | 153      |
+| TimeElapsed      | 4.04e+03 |
+| TimestepsSoFar   | 1.57e+06 |
+-------------------------------
+********** Iteration 132 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.02e+04 |
+| EpLenMean        | 52       |
+| EpRewMean        | -44.6    |
+| EpThisIter       | 226      |
+| SuccessInsertion | 147      |
+| TimeElapsed      | 4.08e+03 |
+| TimestepsSoFar   | 1.58e+06 |
+-------------------------------
+********** Iteration 133 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.04e+04 |
+| EpLenMean        | 46.4     |
+| EpRewMean        | -60.1    |
+| EpThisIter       | 229      |
+| SuccessInsertion | 150      |
+| TimeElapsed      | 4.11e+03 |
+| TimestepsSoFar   | 1.6e+06  |
+-------------------------------
+********** Iteration 134 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.06e+04 |
+| EpLenMean        | 52.2     |
+| EpRewMean        | -47.4    |
+| EpThisIter       | 231      |
+| SuccessInsertion | 152      |
+| TimeElapsed      | 4.14e+03 |
+| TimestepsSoFar   | 1.61e+06 |
+-------------------------------
+********** Iteration 135 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.08e+04 |
+| EpLenMean        | 48.8     |
+| EpRewMean        | -63.2    |
+| EpThisIter       | 224      |
+| SuccessInsertion | 145      |
+| TimeElapsed      | 4.17e+03 |
+| TimestepsSoFar   | 1.62e+06 |
+-------------------------------
+********** Iteration 136 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.11e+04 |
+| EpLenMean        | 51.6     |
+| EpRewMean        | -44.1    |
+| EpThisIter       | 230      |
+| SuccessInsertion | 154      |
+| TimeElapsed      | 4.2e+03  |
+| TimestepsSoFar   | 1.63e+06 |
+-------------------------------
+********** Iteration 137 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.13e+04 |
+| EpLenMean        | 51.2     |
+| EpRewMean        | -45.4    |
+| EpThisIter       | 227      |
+| SuccessInsertion | 149      |
+| TimeElapsed      | 4.23e+03 |
+| TimestepsSoFar   | 1.64e+06 |
+-------------------------------
+********** Iteration 138 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.15e+04 |
+| EpLenMean        | 51       |
+| EpRewMean        | -45.2    |
+| EpThisIter       | 238      |
+| SuccessInsertion | 164      |
+| TimeElapsed      | 4.26e+03 |
+| TimestepsSoFar   | 1.66e+06 |
+-------------------------------
+********** Iteration 139 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.18e+04 |
+| EpLenMean        | 51.4     |
+| EpRewMean        | -43.2    |
+| EpThisIter       | 225      |
+| SuccessInsertion | 150      |
+| TimeElapsed      | 4.29e+03 |
+| TimestepsSoFar   | 1.67e+06 |
+-------------------------------
+********** Iteration 140 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.2e+04  |
+| EpLenMean        | 51.2     |
+| EpRewMean        | -42.9    |
+| EpThisIter       | 235      |
+| SuccessInsertion | 161      |
+| TimeElapsed      | 4.32e+03 |
+| TimestepsSoFar   | 1.68e+06 |
+-------------------------------
+********** Iteration 141 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.22e+04 |
+| EpLenMean        | 50.8     |
+| EpRewMean        | -40.8    |
+| EpThisIter       | 230      |
+| SuccessInsertion | 160      |
+| TimeElapsed      | 4.35e+03 |
+| TimestepsSoFar   | 1.69e+06 |
+-------------------------------
+********** Iteration 142 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.25e+04 |
+| EpLenMean        | 51       |
+| EpRewMean        | -42.1    |
+| EpThisIter       | 226      |
+| SuccessInsertion | 155      |
+| TimeElapsed      | 4.38e+03 |
+| TimestepsSoFar   | 1.7e+06  |
+-------------------------------
+********** Iteration 143 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.27e+04 |
+| EpLenMean        | 51.8     |
+| EpRewMean        | -43.1    |
+| EpThisIter       | 237      |
+| SuccessInsertion | 167      |
+| TimeElapsed      | 4.41e+03 |
+| TimestepsSoFar   | 1.72e+06 |
+-------------------------------
+********** Iteration 144 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.29e+04 |
+| EpLenMean        | 51.6     |
+| EpRewMean        | -44.8    |
+| EpThisIter       | 242      |
+| SuccessInsertion | 170      |
+| TimeElapsed      | 4.44e+03 |
+| TimestepsSoFar   | 1.73e+06 |
+-------------------------------
+********** Iteration 145 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.32e+04 |
+| EpLenMean        | 50.4     |
+| EpRewMean        | -39.6    |
+| EpThisIter       | 246      |
+| SuccessInsertion | 176      |
+| TimeElapsed      | 4.47e+03 |
+| TimestepsSoFar   | 1.74e+06 |
+-------------------------------
+********** Iteration 146 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.34e+04 |
+| EpLenMean        | 71       |
+| EpRewMean        | -84.4    |
+| EpThisIter       | 250      |
+| SuccessInsertion | 187      |
+| TimeElapsed      | 4.5e+03  |
+| TimestepsSoFar   | 1.75e+06 |
+-------------------------------
+********** Iteration 147 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.37e+04 |
+| EpLenMean        | 49.4     |
+| EpRewMean        | -40.3    |
+| EpThisIter       | 248      |
+| SuccessInsertion | 183      |
+| TimeElapsed      | 4.53e+03 |
+| TimestepsSoFar   | 1.76e+06 |
+-------------------------------
+********** Iteration 148 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.39e+04 |
+| EpLenMean        | 39.2     |
+| EpRewMean        | -15.5    |
+| EpThisIter       | 254      |
+| SuccessInsertion | 191      |
+| TimeElapsed      | 4.57e+03 |
+| TimestepsSoFar   | 1.78e+06 |
+-------------------------------
+********** Iteration 149 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.42e+04 |
+| EpLenMean        | 39.8     |
+| EpRewMean        | -16.9    |
+| EpThisIter       | 246      |
+| SuccessInsertion | 183      |
+| TimeElapsed      | 4.59e+03 |
+| TimestepsSoFar   | 1.79e+06 |
+-------------------------------
+********** Iteration 150 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.44e+04 |
+| EpLenMean        | 49.4     |
+| EpRewMean        | -41.9    |
+| EpThisIter       | 252      |
+| SuccessInsertion | 193      |
+| TimeElapsed      | 4.63e+03 |
+| TimestepsSoFar   | 1.8e+06  |
+-------------------------------
+********** Iteration 151 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.47e+04 |
+| EpLenMean        | 38.8     |
+| EpRewMean        | -16.9    |
+| EpThisIter       | 237      |
+| SuccessInsertion | 174      |
+| TimeElapsed      | 4.66e+03 |
+| TimestepsSoFar   | 1.81e+06 |
+-------------------------------
+********** Iteration 152 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.49e+04 |
+| EpLenMean        | 50.2     |
+| EpRewMean        | -40.4    |
+| EpThisIter       | 264      |
+| SuccessInsertion | 205      |
+| TimeElapsed      | 4.69e+03 |
+| TimestepsSoFar   | 1.82e+06 |
+-------------------------------
+********** Iteration 153 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.52e+04 |
+| EpLenMean        | 50.4     |
+| EpRewMean        | -39.8    |
+| EpThisIter       | 263      |
+| SuccessInsertion | 201      |
+| TimeElapsed      | 4.72e+03 |
+| TimestepsSoFar   | 1.83e+06 |
+-------------------------------
+********** Iteration 154 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.55e+04 |
+| EpLenMean        | 49.6     |
+| EpRewMean        | -39.3    |
+| EpThisIter       | 272      |
+| SuccessInsertion | 210      |
+| TimeElapsed      | 4.75e+03 |
+| TimestepsSoFar   | 1.85e+06 |
+-------------------------------
+********** Iteration 155 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.57e+04 |
+| EpLenMean        | 50.6     |
+| EpRewMean        | -39.6    |
+| EpThisIter       | 275      |
+| SuccessInsertion | 218      |
+| TimeElapsed      | 4.78e+03 |
+| TimestepsSoFar   | 1.86e+06 |
+-------------------------------
+********** Iteration 156 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.6e+04  |
+| EpLenMean        | 40.4     |
+| EpRewMean        | -18      |
+| EpThisIter       | 284      |
+| SuccessInsertion | 217      |
+| TimeElapsed      | 4.81e+03 |
+| TimestepsSoFar   | 1.87e+06 |
+-------------------------------
+********** Iteration 157 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.63e+04 |
+| EpLenMean        | 39.4     |
+| EpRewMean        | -18.6    |
+| EpThisIter       | 280      |
+| SuccessInsertion | 220      |
+| TimeElapsed      | 4.84e+03 |
+| TimestepsSoFar   | 1.88e+06 |
+-------------------------------
+********** Iteration 158 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.66e+04 |
+| EpLenMean        | 49       |
+| EpRewMean        | -38.2    |
+| EpThisIter       | 287      |
+| SuccessInsertion | 221      |
+| TimeElapsed      | 4.87e+03 |
+| TimestepsSoFar   | 1.89e+06 |
+-------------------------------
+********** Iteration 159 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.69e+04 |
+| EpLenMean        | 40.6     |
+| EpRewMean        | -16.6    |
+| EpThisIter       | 305      |
+| SuccessInsertion | 235      |
+| TimeElapsed      | 4.9e+03  |
+| TimestepsSoFar   | 1.91e+06 |
+-------------------------------
+********** Iteration 160 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.72e+04 |
+| EpLenMean        | 40.2     |
+| EpRewMean        | -17.9    |
+| EpThisIter       | 297      |
+| SuccessInsertion | 232      |
+| TimeElapsed      | 4.93e+03 |
+| TimestepsSoFar   | 1.92e+06 |
+-------------------------------
+********** Iteration 161 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.75e+04 |
+| EpLenMean        | 38.2     |
+| EpRewMean        | -11.5    |
+| EpThisIter       | 310      |
+| SuccessInsertion | 234      |
+| TimeElapsed      | 4.96e+03 |
+| TimestepsSoFar   | 1.93e+06 |
+-------------------------------
+********** Iteration 162 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.78e+04 |
+| EpLenMean        | 40.8     |
+| EpRewMean        | -20.7    |
+| EpThisIter       | 310      |
+| SuccessInsertion | 233      |
+| TimeElapsed      | 4.99e+03 |
+| TimestepsSoFar   | 1.94e+06 |
+-------------------------------
+********** Iteration 163 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.81e+04 |
+| EpLenMean        | 40       |
+| EpRewMean        | -18.2    |
+| EpThisIter       | 312      |
+| SuccessInsertion | 235      |
+| TimeElapsed      | 5.02e+03 |
+| TimestepsSoFar   | 1.95e+06 |
+-------------------------------
+********** Iteration 164 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.84e+04 |
+| EpLenMean        | 41.6     |
+| EpRewMean        | -22.9    |
+| EpThisIter       | 308      |
+| SuccessInsertion | 232      |
+| TimeElapsed      | 5.05e+03 |
+| TimestepsSoFar   | 1.97e+06 |
+-------------------------------
+********** Iteration 165 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.87e+04 |
+| EpLenMean        | 40.4     |
+| EpRewMean        | -18.7    |
+| EpThisIter       | 309      |
+| SuccessInsertion | 231      |
+| TimeElapsed      | 5.08e+03 |
+| TimestepsSoFar   | 1.98e+06 |
+-------------------------------
+********** Iteration 166 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.91e+04 |
+| EpLenMean        | 39.6     |
+| EpRewMean        | -16.8    |
+| EpThisIter       | 311      |
+| SuccessInsertion | 235      |
+| TimeElapsed      | 5.11e+03 |
+| TimestepsSoFar   | 1.99e+06 |
+-------------------------------
+********** Iteration 167 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.94e+04 |
+| EpLenMean        | 38       |
+| EpRewMean        | -13.7    |
+| EpThisIter       | 316      |
+| SuccessInsertion | 237      |
+| TimeElapsed      | 5.14e+03 |
+| TimestepsSoFar   | 2e+06    |
+-------------------------------
+********** Iteration 168 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 2.97e+04 |
+| EpLenMean        | 38       |
+| EpRewMean        | -13.7    |
+| EpThisIter       | 316      |
+| SuccessInsertion | 238      |
+| TimeElapsed      | 5.17e+03 |
+| TimestepsSoFar   | 2.01e+06 |
+-------------------------------
+********** Iteration 169 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 3e+04    |
+| EpLenMean        | 40       |
+| EpRewMean        | -17.5    |
+| EpThisIter       | 318      |
+| SuccessInsertion | 239      |
+| TimeElapsed      | 5.2e+03  |
+| TimestepsSoFar   | 2.03e+06 |
+-------------------------------
+********** Iteration 170 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 3.03e+04 |
+| EpLenMean        | 39.2     |
+| EpRewMean        | -19.4    |
+| EpThisIter       | 311      |
+| SuccessInsertion | 232      |
+| TimeElapsed      | 5.23e+03 |
+| TimestepsSoFar   | 2.04e+06 |
+-------------------------------
+********** Iteration 171 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 3.06e+04 |
+| EpLenMean        | 38.4     |
+| EpRewMean        | -18.4    |
+| EpThisIter       | 314      |
+| SuccessInsertion | 235      |
+| TimeElapsed      | 5.26e+03 |
+| TimestepsSoFar   | 2.05e+06 |
+-------------------------------
+********** Iteration 172 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 3.09e+04 |
+| EpLenMean        | 38.4     |
+| EpRewMean        | -14.5    |
+| EpThisIter       | 317      |
+| SuccessInsertion | 238      |
+| TimeElapsed      | 5.29e+03 |
+| TimestepsSoFar   | 2.06e+06 |
+-------------------------------
+********** Iteration 173 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 3.13e+04 |
+| EpLenMean        | 37.6     |
+| EpRewMean        | -17.4    |
+| EpThisIter       | 313      |
+| SuccessInsertion | 234      |
+| TimeElapsed      | 5.33e+03 |
+| TimestepsSoFar   | 2.07e+06 |
+-------------------------------
+********** Iteration 174 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 3.16e+04 |
+| EpLenMean        | 37.4     |
+| EpRewMean        | -17.5    |
+| EpThisIter       | 319      |
+| SuccessInsertion | 240      |
+| TimeElapsed      | 5.37e+03 |
+| TimestepsSoFar   | 2.09e+06 |
+-------------------------------
+********** Iteration 175 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 3.19e+04 |
+| EpLenMean        | 38.8     |
+| EpRewMean        | -16.2    |
+| EpThisIter       | 317      |
+| SuccessInsertion | 238      |
+| TimeElapsed      | 5.41e+03 |
+| TimestepsSoFar   | 2.1e+06  |
+-------------------------------
+********** Iteration 176 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 3.22e+04 |
+| EpLenMean        | 37.8     |
+| EpRewMean        | -16.8    |
+| EpThisIter       | 316      |
+| SuccessInsertion | 238      |
+| TimeElapsed      | 5.45e+03 |
+| TimestepsSoFar   | 2.11e+06 |
+-------------------------------
+********** Iteration 177 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 3.25e+04 |
+| EpLenMean        | 39.6     |
+| EpRewMean        | -19.9    |
+| EpThisIter       | 315      |
+| SuccessInsertion | 236      |
+| TimeElapsed      | 5.48e+03 |
+| TimestepsSoFar   | 2.12e+06 |
+-------------------------------
+********** Iteration 178 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 3.28e+04 |
+| EpLenMean        | 39.2     |
+| EpRewMean        | -20.8    |
+| EpThisIter       | 319      |
+| SuccessInsertion | 240      |
+| TimeElapsed      | 5.51e+03 |
+| TimestepsSoFar   | 2.13e+06 |
+-------------------------------
+********** Iteration 179 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 3.32e+04 |
+| EpLenMean        | 39.2     |
+| EpRewMean        | -22.1    |
+| EpThisIter       | 314      |
+| SuccessInsertion | 235      |
+| TimeElapsed      | 5.54e+03 |
+| TimestepsSoFar   | 2.15e+06 |
+-------------------------------
+********** Iteration 180 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 3.35e+04 |
+| EpLenMean        | 38.4     |
+| EpRewMean        | -20.2    |
+| EpThisIter       | 319      |
+| SuccessInsertion | 240      |
+| TimeElapsed      | 5.57e+03 |
+| TimestepsSoFar   | 2.16e+06 |
+-------------------------------
+********** Iteration 181 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 3.38e+04 |
+| EpLenMean        | 39.2     |
+| EpRewMean        | -20.4    |
+| EpThisIter       | 311      |
+| SuccessInsertion | 232      |
+| TimeElapsed      | 5.6e+03  |
+| TimestepsSoFar   | 2.17e+06 |
+-------------------------------
+********** Iteration 182 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 3.41e+04 |
+| EpLenMean        | 39.2     |
+| EpRewMean        | -18.5    |
+| EpThisIter       | 318      |
+| SuccessInsertion | 239      |
+| TimeElapsed      | 5.64e+03 |
+| TimestepsSoFar   | 2.18e+06 |
+-------------------------------
+********** Iteration 183 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 3.44e+04 |
+| EpLenMean        | 38.4     |
+| EpRewMean        | -20.9    |
+| EpThisIter       | 319      |
+| SuccessInsertion | 240      |
+| TimeElapsed      | 5.67e+03 |
+| TimestepsSoFar   | 2.19e+06 |
+-------------------------------
+********** Iteration 184 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 3.47e+04 |
+| EpLenMean        | 49.6     |
+| EpRewMean        | -31.3    |
+| EpThisIter       | 316      |
+| SuccessInsertion | 237      |
+| TimeElapsed      | 5.7e+03  |
+| TimestepsSoFar   | 2.21e+06 |
+-------------------------------
+********** Iteration 185 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 3.51e+04 |
+| EpLenMean        | 39.4     |
+| EpRewMean        | -22.5    |
+| EpThisIter       | 319      |
+| SuccessInsertion | 240      |
+| TimeElapsed      | 5.73e+03 |
+| TimestepsSoFar   | 2.22e+06 |
+-------------------------------
+********** Iteration 186 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 3.54e+04 |
+| EpLenMean        | 38.8     |
+| EpRewMean        | -20.9    |
+| EpThisIter       | 319      |
+| SuccessInsertion | 240      |
+| TimeElapsed      | 5.76e+03 |
+| TimestepsSoFar   | 2.23e+06 |
+-------------------------------
+********** Iteration 187 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 3.57e+04 |
+| EpLenMean        | 38.8     |
+| EpRewMean        | -20.9    |
+| EpThisIter       | 318      |
+| SuccessInsertion | 239      |
+| TimeElapsed      | 5.79e+03 |
+| TimestepsSoFar   | 2.24e+06 |
+-------------------------------
+********** Iteration 188 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 3.6e+04  |
+| EpLenMean        | 38.2     |
+| EpRewMean        | -17.2    |
+| EpThisIter       | 315      |
+| SuccessInsertion | 236      |
+| TimeElapsed      | 5.82e+03 |
+| TimestepsSoFar   | 2.25e+06 |
+-------------------------------
+********** Iteration 189 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 3.63e+04 |
+| EpLenMean        | 38.6     |
+| EpRewMean        | -21.3    |
+| EpThisIter       | 316      |
+| SuccessInsertion | 237      |
+| TimeElapsed      | 5.86e+03 |
+| TimestepsSoFar   | 2.27e+06 |
+-------------------------------
+********** Iteration 190 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 3.66e+04 |
+| EpLenMean        | 40.2     |
+| EpRewMean        | -23      |
+| EpThisIter       | 319      |
+| SuccessInsertion | 240      |
+| TimeElapsed      | 5.89e+03 |
+| TimestepsSoFar   | 2.28e+06 |
+-------------------------------
+********** Iteration 191 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 3.7e+04  |
+| EpLenMean        | 38.4     |
+| EpRewMean        | -20.8    |
+| EpThisIter       | 316      |
+| SuccessInsertion | 237      |
+| TimeElapsed      | 5.92e+03 |
+| TimestepsSoFar   | 2.29e+06 |
+-------------------------------
+********** Iteration 192 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 3.73e+04 |
+| EpLenMean        | 37.2     |
+| EpRewMean        | -18.7    |
+| EpThisIter       | 318      |
+| SuccessInsertion | 239      |
+| TimeElapsed      | 5.95e+03 |
+| TimestepsSoFar   | 2.3e+06  |
+-------------------------------
+********** Iteration 193 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 3.76e+04 |
+| EpLenMean        | 37.6     |
+| EpRewMean        | -19.6    |
+| EpThisIter       | 319      |
+| SuccessInsertion | 240      |
+| TimeElapsed      | 5.98e+03 |
+| TimestepsSoFar   | 2.31e+06 |
+-------------------------------
+********** Iteration 194 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 3.79e+04 |
+| EpLenMean        | 36.8     |
+| EpRewMean        | -17.3    |
+| EpThisIter       | 314      |
+| SuccessInsertion | 235      |
+| TimeElapsed      | 6.01e+03 |
+| TimestepsSoFar   | 2.33e+06 |
+-------------------------------
+********** Iteration 195 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 3.82e+04 |
+| EpLenMean        | 38.8     |
+| EpRewMean        | -21.4    |
+| EpThisIter       | 317      |
+| SuccessInsertion | 238      |
+| TimeElapsed      | 6.04e+03 |
+| TimestepsSoFar   | 2.34e+06 |
+-------------------------------
+********** Iteration 196 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 3.85e+04 |
+| EpLenMean        | 39.2     |
+| EpRewMean        | -21.4    |
+| EpThisIter       | 314      |
+| SuccessInsertion | 235      |
+| TimeElapsed      | 6.08e+03 |
+| TimestepsSoFar   | 2.35e+06 |
+-------------------------------
+********** Iteration 197 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 3.89e+04 |
+| EpLenMean        | 48       |
+| EpRewMean        | -31.3    |
+| EpThisIter       | 312      |
+| SuccessInsertion | 233      |
+| TimeElapsed      | 6.11e+03 |
+| TimestepsSoFar   | 2.36e+06 |
+-------------------------------
+********** Iteration 198 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 3.92e+04 |
+| EpLenMean        | 37.4     |
+| EpRewMean        | -18      |
+| EpThisIter       | 319      |
+| SuccessInsertion | 240      |
+| TimeElapsed      | 6.14e+03 |
+| TimestepsSoFar   | 2.37e+06 |
+-------------------------------
+********** Iteration 199 ************
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 3.95e+04 |
+| EpLenMean        | 38.4     |
+| EpRewMean        | -20.4    |
+| EpThisIter       | 316      |
+| SuccessInsertion | 237      |
+| TimeElapsed      | 6.17e+03 |
+| TimestepsSoFar   | 2.39e+06 |
+-------------------------------
+save_state method is deprecated, please use save_variables instead

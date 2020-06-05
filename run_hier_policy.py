@@ -6,9 +6,9 @@ import gym
 import os
 
 clustering_params = {
-    'per_train': 1,  # percentage of total rollouts to be trained
+    'per_train': 0.5,  # percentage of total rollouts to be trained
     'window_size': 2,  # window size of transition point clustering
-    'weight_prior': 0.05,  # weight prior of DPGMM clustering for transition point
+    'weight_prior': 0.01,  # weight prior of DPGMM clustering for transition point
     'DBeps': 3.0,  # DBSCAN noise parameter for clustering segments
     'DBmin_samples': 2,  # DBSCAN minimum cluster size parameter for clustering segments
     'n_components': 2,  # number of DPGMM components to be used
@@ -20,10 +20,10 @@ lr_params_guard = {'C': 1, 'penalty': 'l2'}
 
 def train(env_id, num_iteration, seed, model_path=None):
     # Create TF session
-    U.make_session(num_cpu=1).__enter__()
+    U.make_session().__enter__()
 
     def policy_fn(name, ob_space, ac_space):
-        return option_critic_model.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space, hid_size=[32, 32, 32], num_hid_layers=[2, 2, 2], term_prob=0.5, k=0.5, rg=10)
+        return option_critic_model.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space, hid_size=[32, 32, 16], num_hid_layers=[2, 2, 2], term_prob=0.5, k=0.5, rg=10)
 
     # Create Mujoco environment
     env = gym.make(env_id)
@@ -36,7 +36,7 @@ def train(env_id, num_iteration, seed, model_path=None):
     pi = hier_runner.learn(env, policy_fn, clustering_params, lr_params_interest, lr_params_guard, num_options=2,
                            horizon=150,  # timesteps per actor per update
                            clip_param=0.2, pol_entcoeff=0.02, op_entcoeff=0.01, # clipping parameter epsilon, entropy coeff
-                           optim_epochs=10, mainlr=3e-4, intlr=1e-4, optim_batchsize=160,  # optimization hypers
+                           optim_epochs=50, mainlr=3.0e-4, intlr=2.5e-4, optim_batchsize=32,  # optimization hypers
                            gamma=0.99, lam=0.95,  # advantage estimation
                            max_timesteps=3e6, max_episodes=0, max_iters=num_iteration, max_seconds=0,  # time constraint
                            callback=None,  # you can do anything in the callback, since it takes locals(), globals()
@@ -56,7 +56,7 @@ def main():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--env', help='environment ID', type=str, default='Block2D-v1')
     parser.add_argument('--seed', help='RNG seed', type=int, default=1)
-    parser.add_argument('--num_iteration', type=float, default=150)
+    parser.add_argument('--num_iteration', type=float, default=200)
     parser.add_argument('--model_path', help='Path to save trained model to',
                         default=os.path.join(logger.get_dir(), 'block_ppo'), type=str)
     parser.add_argument('--log_path', help='Directory to save learning curve data.', default=None, type=str)

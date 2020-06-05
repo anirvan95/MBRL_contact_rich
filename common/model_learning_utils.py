@@ -87,10 +87,10 @@ class LRPrediction(object):
 
     def train(self, X, y):
         '''
-        Trains SVMs for interest and guard functions
-        :param svm_grid_params:
-        :param svm_params:
-        :param XU_t:
+        Trains Logistic Regression for interest and guard functions
+        :param lr_grid_params:
+        :param lr_params:
+        :param X_t:
         :param labels_t:
         :return:
         '''

@@ -24,11 +24,11 @@ def train(env_id, num_iteration, seed, model_path=None):
     # Tune hyperparameters here, will be moved to main args for grid search
 
     pi = base_runner.learn(env, policy_fn,
-                           horizon=150, batch_size_per_episode=7500,
+                           horizon=150, batch_size_per_episode=12000,
                            clip_param=0.2, entcoeff=0.01,
-                           optim_epochs=100, optim_stepsize=3e-4, optim_batchsize=32,
+                           optim_epochs=50, optim_stepsize=3e-4, optim_batchsize=32,
                            gamma=0.99, lam=0.95,
-                           max_timesteps=2.5e6, max_iters=100,
+                           max_timesteps=5e6, max_iters=200,
                            adam_epsilon=1e-4, schedule='linear'
                            )
     env.close()
@@ -44,7 +44,7 @@ def main():
     parser.add_argument('--env', help='environment ID', type=str, default='Block2D-v1')
     parser.add_argument('--seed', help='RNG seed', type=int, default=1)
     parser.add_argument('--reward_scale', help='Reward scale factor. Default: 1.0', default=1.0, type=float)
-    parser.add_argument('--num_iteration', type=float, default=150)
+    parser.add_argument('--num_iteration', type=float, default=200)
     parser.add_argument('--model_path', help='Path to save trained model to',
                         default=os.path.join(logger.get_dir(), 'block_ppo'), type=str)
     parser.add_argument('--log_path', help='Directory to save learning curve data.', default=None, type=str)

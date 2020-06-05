@@ -32,9 +32,9 @@ class Block2DEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         reward_ctrl = -ACTION_SCALE * np.square(a).sum()
         reward = reward_dist + reward_ctrl
         done = False
-        if np.linalg.norm(dist) < 0.005:
-            reward = 100
+        if np.linalg.norm(dist) < 0.0125:
             done = True
+            reward = 100
         return ob, reward, done, dict(reward_dist=reward_dist, reward_ctrl=reward_ctrl)
 
     def viewer_setup(self):

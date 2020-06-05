@@ -2,6 +2,16 @@ import numpy as np
 import scipy.signal
 
 
+def zipsame(*seqs):
+    L = len(seqs[0])
+    assert all(len(seq) == L for seq in seqs[1:])
+    return zip(*seqs)
+
+
+def flatten_lists(listoflists):
+    return [el for list_ in listoflists for el in list_]
+
+
 def discount(x, gamma):
     """
     computes discounted sums along 0th dimension of x.
