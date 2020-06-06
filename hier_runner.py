@@ -56,7 +56,7 @@ def sample_trajectory(pi, env, horizon=150, batch_size=12000, render=False):
     """
             Generates rollouts for policy optimization
     """
-    GOAL = np.array([0, 0.5])
+    GOAL = np.array([0, 0.52])
     ac = env.action_space.sample()  # not used, just so we have the datatype
     new = True  # marks if we're on first timestep of an episode
     ob = env.reset()
@@ -215,7 +215,7 @@ def add_vtarg_and_adv(seg, gamma, lam, num_options):
     seg["tdlamret"] = seg["adv"] + u_sw[range(len(opts)), opts]
 
 
-def learn(env, policy_fn, clustering_params, lr_params_interest, lr_params_guard, *, num_options=2,
+def learn(env, model_path, policy_fn, clustering_params, lr_params_interest, lr_params_guard, *, num_options=2,
           horizon,  # timesteps per actor per update
           clip_param, pol_entcoeff=0.02, op_entcoeff=0.01, # clipping parameter epsilon, entropy coeff
           optim_epochs=10, mainlr=3e-4, intlr=1e-4, optim_batchsize=160,  # optimization hypers
@@ -224,7 +224,8 @@ def learn(env, policy_fn, clustering_params, lr_params_interest, lr_params_guard
           callback=None,  # you can do anything in the callback, since it takes locals(), globals()
           batch_size_per_episode=15000,
           adam_epsilon=1.2e-4,
-          schedule='linear'  # annealing for stepsize parameters (epsilon and adam)
+          schedule='linear',  # annealing for stepsize parameters (epsilon and adam)
+          retrain=False
           ):
     """
             Core learning function
@@ -307,6 +308,11 @@ def learn(env, policy_fn, clustering_params, lr_params_interest, lr_params_guard
     x_train_dataset = deque(maxlen=3)
     #pickel variable
     p = []
+
+    if retrain == True:
+        print("Retraining to New Goal")
+        time.sleep(2)
+        U.load_state(model_path)
 
     model_learning_flag = True
     retain_model = False

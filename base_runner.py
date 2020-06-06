@@ -14,7 +14,7 @@ import pickle
 
 
 def sample_trajectory(pi, env, horizon=150, batch_size=12000, stochastic=True, render=False):
-    GOAL = np.array([0, 0.5])
+    GOAL = np.array([0, 0.52])
     sampleInd = 0
     ac = env.action_space.sample() # not used, just so we have the datatype
     new = True # marks if we're on first timestep of an episode
@@ -97,7 +97,7 @@ def add_vtarg_and_adv(seg, gamma, lam):
     seg["tdlamret"] = seg["adv"] + seg["vpred"]
 
 
-def learn(env, policy_fn, *,
+def learn(env, model_path, policy_fn, *,
         horizon=150, # timesteps per actor per update
         batch_size_per_episode=15000,
         clip_param=0.2, entcoeff=0.02, # clipping parameter epsilon, entropy coeff
@@ -106,7 +106,8 @@ def learn(env, policy_fn, *,
         max_timesteps=0, max_episodes=0, max_iters=0, max_seconds=0,  # time constraint
         callback=None, # you can do anything in the callback, since it takes locals(), globals()
         adam_epsilon=1e-4,
-        schedule='constant' # annealing for stepsize parameters (epsilon and adam)
+        schedule='constant', # annealing for stepsize parameters (epsilon and adam)
+        retrain=False
         ):
     # Setup losses and stuff
     # ----------------------------------------
@@ -157,6 +158,12 @@ def learn(env, policy_fn, *,
     rewbuffer = deque(maxlen=5) # rolling buffer for episode rewards
 
     p = [] #for saving the rollouts
+
+    if retrain == True:
+        print("Retraining to New Goal")
+        time.sleep(2)
+        U.load_state(model_path)
+
     while True:
         if callback: callback(locals(), globals())
         if max_timesteps and timesteps_so_far >= max_timesteps:
