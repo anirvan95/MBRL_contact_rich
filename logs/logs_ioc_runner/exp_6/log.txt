@@ -1,0 +1,16 @@
+Logging to /home/anirvan/MasterThesis/MBRL_contact_rich/logs/logs_ioc_runner/exp_6/
+load_state method is deprecated, please use load_variables instead
+********** Iteration 0 ************
+Optimizing...
+Optimizing...
+-------------------------------
+| EpisodesSoFar    | 87       |
+| EpLenMean        | 150      |
+| EpRewMean        | -252     |
+| EpThisIter       | 87       |
+| SuccessInsertion | 8        |
+| TimeElapsed      | 64.6     |
+| TimestepsSoFar   | 1.19e+04 |
+-------------------------------
+********** Iteration 1 ************
+Optimizing...
