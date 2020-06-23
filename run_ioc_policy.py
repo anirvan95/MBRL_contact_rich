@@ -34,8 +34,8 @@ def train(env_id, num_iteration, seed, log_path=None, model_path=None):
                           )
     env.close()
     if model_path:
-        U.save_state(log_path)
-        print("Model saved")
+        #U.save_state(log_path)
+        print("Model saving skipped")
 
     return pi
 
@@ -45,7 +45,7 @@ def main():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--env', help='environment ID', type=str, default='Block2D-v1')
     parser.add_argument('--seed', help='RNG seed', type=int, default=1)
-    parser.add_argument('--num_iteration', type=float, default=50)
+    parser.add_argument('--num_iteration', type=float, default=2)
     parser.add_argument('--model_path', help='Path to save trained model to',
                         default=os.path.join(logger.get_dir(), 'block_ppo'), type=str)
     parser.add_argument('--log_path', help='Directory to save learning curve data.', default=None, type=str)

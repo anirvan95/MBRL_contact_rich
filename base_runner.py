@@ -14,7 +14,7 @@ import pickle
 
 
 def sample_trajectory(pi, env, horizon=150, batch_size=12000, stochastic=True, render=False):
-    GOAL = np.array([0, 0.52])
+    GOAL = np.array([0, 0.5])
     sampleInd = 0
     ac = env.action_space.sample() # not used, just so we have the datatype
     new = True # marks if we're on first timestep of an episode
@@ -27,15 +27,16 @@ def sample_trajectory(pi, env, horizon=150, batch_size=12000, stochastic=True, r
 
     # Initialize history arrays
     obs = np.array([ob for _ in range(batch_size)])
+    cFs = np.zeros(batch_size, 'float32')
     rews = np.zeros(batch_size, 'float32')
     vpreds = np.zeros(batch_size, 'float32')
     news = np.zeros(batch_size, 'int32')
     acs = np.array([ac for _ in range(batch_size)])
     prevacs = acs.copy()
 
-
     insertion = 0
     new_rollout = True
+    t = 0
     while sampleInd < batch_size:
         prevac = ac
         ac, vpred = pi.act(stochastic, ob)
@@ -47,36 +48,36 @@ def sample_trajectory(pi, env, horizon=150, batch_size=12000, stochastic=True, r
         vpreds[sampleInd] = vpred * (1 - new)
         news[sampleInd] = new
 
-        #Take step in environment
+        #print(observations[t] - obs[sampleInd])
+        # Take step in environment
         ob, rew, new, _ = env.step(ac)
         rews[sampleInd] = rew
+        cFs[sampleInd] = env.getContactForce()
 
         cur_ep_ret += rew
         cur_ep_len += 1
-
-        #Bunch of checks for render
-        if render:
-            env.render()
 
         dist = ob[:2]-GOAL
         if np.linalg.norm(dist) < 0.025 and new_rollout:
             insertion = insertion+1
             new_rollout = False
 
-        if new or (sampleInd > 0 and sampleInd % horizon == 0):
+        t += 1
+        sampleInd += 1
+
+        if new or (t > 0 and t == horizon):
             ep_rets.append(cur_ep_ret)
             ep_lens.append(cur_ep_len)
             cur_ep_ret = 0
             cur_ep_len = 0
             new = True #Done is true
+            env.close()
             ob = env.reset()
-            render = False
             new_rollout = True
-
-        sampleInd += 1
+            t = 0
 
     print("\n Maximum Reward this iteration: ", max(ep_rets), " \n")
-    seg = {"ob": obs, "rew": rews, "vpred": vpreds, "new": news, "ac": acs, "prevac": prevacs, "nextvpred": vpred * (1 - new), "ep_rets": ep_rets, "ep_lens": ep_lens, "success":insertion}
+    seg = {"ob": obs, "rew": rews, "vpred": vpreds, "new": news, "ac": acs, "prevac": prevacs, "nextvpred": vpred * (1 - new), "ep_rets": ep_rets, "ep_lens": ep_lens, "success": insertion, 'contactF': cFs}
     return seg
 
 
@@ -187,7 +188,8 @@ def learn(env, model_path, policy_fn, *,
         seg = sample_trajectory(pi, env, horizon=horizon, batch_size=batch_size_per_episode, stochastic=True, render=False)
         data = {'seg': seg}
         p.append(data)
-        pickle.dump(p, open("data/base_actor_critic_exp_12.pkl", "wb"))
+        del data
+        pickle.dump(p, open("data/base_actor_critic_bulletExp4.pkl", "wb"))
 
         add_vtarg_and_adv(seg, gamma, lam)
 

@@ -56,7 +56,7 @@ def sample_trajectory(pi, env, horizon=150, batch_size=12000, render=False):
     """
             Generates rollouts for policy optimization
     """
-    GOAL = np.array([0, 0.52])
+    GOAL = np.array([0, 0.5])
     ac = env.action_space.sample()  # not used, just so we have the datatype
     new = True  # marks if we're on first timestep of an episode
     ob = env.reset()
@@ -91,10 +91,15 @@ def sample_trajectory(pi, env, horizon=150, batch_size=12000, render=False):
 
     opt_duration = [[] for _ in range(num_options)]
     t = 0
+    i = 0
     curr_opt_duration = 0
 
     insertion = 0
     new_rollout = True
+
+    observations = np.array([ob for _ in range(horizon)])
+    actions = np.array([ac for _ in range(horizon)])
+    rollouts = []
     while t < batch_size:
         prevac = ac
         ac = pi.act(True, ob, option)
@@ -112,6 +117,9 @@ def sample_trajectory(pi, env, horizon=150, batch_size=12000, render=False):
         int_fcs.append(int_fc)
         op_probs.append(op_prob)
         activated_options[t] = active_options_t
+
+        observations[i] = ob
+        actions[i] = ac
 
         ob, rew, new, _ = env.step(ac)
         if render:
@@ -136,6 +144,7 @@ def sample_trajectory(pi, env, horizon=150, batch_size=12000, render=False):
         cur_ep_ret += rew
         cur_ep_len += 1
         dist = ob[:2] - GOAL
+
         if np.linalg.norm(dist) < 0.025 and new_rollout:
             insertion = insertion + 1
             new_rollout = False
@@ -154,7 +163,14 @@ def sample_trajectory(pi, env, horizon=150, batch_size=12000, render=False):
             last_option = option
             new_rollout = True
             new = True
+
         t += 1
+        i += 1
+
+        if i == horizon or new:
+            data = {'observations': observations, 'actions': actions}
+            rollouts.append(data)
+            i = 0
 
     betas = np.array(betas)
     vpreds = np.array(vpreds).reshape(batch_size, num_options)
@@ -171,7 +187,7 @@ def sample_trajectory(pi, env, horizon=150, batch_size=12000, render=False):
            "intfc": np.array(int_fcs),
            "activated_options": activated_options, "success": insertion}
 
-    return seg
+    return seg, rollouts
 
 
 def add_vtarg_and_adv(seg, gamma, lam, num_options):
@@ -338,9 +354,9 @@ def learn(env, model_path, policy_fn, clustering_params, lr_params_interest, lr_
         logger.log("********** Iteration %i ************" % iters_so_far)
         print("Collecting samples for policy optimization !! ")
         stime = time.time()
-        render = False
+        render = True
 
-        seg = sample_trajectory(pi, env, horizon=horizon, batch_size=batch_size_per_episode, render=render)
+        seg, rollouts = sample_trajectory(pi, env, horizon=horizon, batch_size=batch_size_per_episode, render=render)
         print("Samples collected in !! :", time.time() - stime)
 
         datas = [0 for _ in range(num_options)]
@@ -386,6 +402,9 @@ def learn(env, model_path, policy_fn, clustering_params, lr_params_interest, lr_
 
         opgrads = opgrad(seg['ob'], seg['opts'], seg["last_betas"], seg["op_adv"], seg["intfc"], seg["activated_options"])[0]
         adam.update(opgrads, intlr)
+        data = {'seg': seg, 'rollouts': rollouts}
+        p.append(data)
+        pickle.dump(p, open("data/option_critic_data_exp_13b.pkl", "wb"))
         '''
         # Update model with updated policy
         rollouts = sample_trajectory_model_learning(pi, env, horizon=horizon, batch_size=int(batch_size_per_episode / 4))

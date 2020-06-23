@@ -9,6 +9,7 @@ from mpi4py import MPI
 from collections import deque
 from common.math_util import zipsame, flatten_lists
 import time
+import pickle
 
 tf.disable_v2_behavior()
 
@@ -288,7 +289,7 @@ def learn(env, model_path, policy_func, *,
         time.sleep(2)
         U.load_state(model_path)
 
-
+    p = []
 
     while True:
         if callback: callback(locals(), globals())
@@ -414,7 +415,9 @@ def learn(env, model_path, policy_func, *,
 
         opgrads = opgrad(seg['ob'], seg['opts'], seg["last_betas"], seg["op_adv"], seg["intfc"], seg["activated_options"])[0]
         adam.update(opgrads, piolr)
-
+        data = {'seg': seg}
+        p.append(data)
+        pickle.dump(p, open("data/ioc_data_exp_7b.pkl", "wb"))
         lrlocal = (seg["ep_lens"], seg["ep_rets"])  # local values
         listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal)  # list of tuples
         lens, rews = map(flatten_lists, zip(*listoflrpairs))

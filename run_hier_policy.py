@@ -57,12 +57,12 @@ def main():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--env', help='environment ID', type=str, default='Block2D-v1')
     parser.add_argument('--seed', help='RNG seed', type=int, default=1)
-    parser.add_argument('--num_iteration', type=float, default=200)
+    parser.add_argument('--num_iteration', type=float, default=5)
     parser.add_argument('--model_path', help='Path to save trained model to',
                         default=os.path.join(logger.get_dir(), 'block_ppo'), type=str)
     parser.add_argument('--log_path', help='Directory to save learning curve data.', default=None, type=str)
     parser.add_argument('--play', default=False, action='store_true')
-    parser.add_argument('--horizon', help='Maximum time horizon in each iteration', default=50, type=int)
+    parser.add_argument('--horizon', help='Maximum time horizon in each iteration', default=150, type=int)
 
     args = parser.parse_args()
     logger.configure(dir=args.log_path)
