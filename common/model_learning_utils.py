@@ -1,25 +1,31 @@
 import numpy as np
 import gpflow
 import tensorflow as tf
-from sklearn.model_selection import GridSearchCV
 from sklearn.svm import SVC
 from sklearn.linear_model import LogisticRegression
-import time
+from sklearn.mixture import BayesianGaussianMixture
+from math import sqrt
+import sys
 
 
-class multiDimGaussianProcess():
+class multiDimGaussianProcess(object):
+    '''
+    Trains Multi Dimensional GP's for return maps and mode dynamics
+    :param gpr_params: gpflow gpr params
+    '''
+
     def __init__(self, gpr_params):
         self.gp_param = gpr_params
 
     def fit(self, X, Y):
-        assert(Y.shape[1]>=2)
-        assert (X.shape[1]>=2)
+        assert(Y.shape[1] >= 2)
+        assert (X.shape[1] >= 2)
         self.gp_list = []
         in_dim = X.shape[1]
         out_dim = Y.shape[1]
         self.out_dim = out_dim
 
-        # Possible parallelization here
+        #TODO: Possible parallelization here
         for i in range(self.out_dim):
             gp_params = self.gp_param
             normalize = gp_params['normalize']
@@ -56,19 +62,16 @@ class multiDimGaussianProcess():
 
 
 class SVMPrediction(object):
+    '''
+    Trains SVMs for interest and guard functions
+    :param svm_grid_params: parameters for grid search
+    :param svm_params: parameters for training
+    '''
     def __init__(self, svm_params):
         self.svm_params = svm_params
         self.clf = SVC(**self.svm_params)
 
     def train(self, X, y):
-        '''
-        Trains SVMs for interest and guard functions
-        :param svm_grid_params:
-        :param svm_params:
-        :param XU_t:
-        :param labels_t:
-        :return:
-        '''
         self.clf.fit(X, y)
 
     def predict(self, X):
@@ -81,19 +84,16 @@ class SVMPrediction(object):
 
 
 class LRPrediction(object):
+    '''
+    Trains Logistic Regression for interest and guard functions
+    :param lr_params: parameters for training
+    :return:
+    '''
     def __init__(self, lr_params):
         self.lr_params = lr_params
         self.logreg = LogisticRegression(**self.lr_params)
 
     def train(self, X, y):
-        '''
-        Trains Logistic Regression for interest and guard functions
-        :param lr_grid_params:
-        :param lr_params:
-        :param X_t:
-        :param labels_t:
-        :return:
-        '''
         self.logreg.fit(X, y)
 
     def predict(self, X):
@@ -105,22 +105,162 @@ class LRPrediction(object):
         return mode_prob
 
 
-def learnTransitionRelation(nmodes, segmentedRollouts):
-    transitionRel = np.zeros((nmodes,nmodes))
-    rollouts = len(segmentedRollouts)
-    y_data = []
-    x_data = []
-    firstDataFlag = True
-    for rollout in range(0, rollouts):
-        for t in range(0, len(segmentedRollouts[rollout]['label'])):
-            if segmentedRollouts[rollout]['label'][t] != segmentedRollouts[rollout]['label_t'][t]:
-                # Updating the transition relations
-                transitionRel[int(segmentedRollouts[rollout]['label'][t]), int(segmentedRollouts[rollout]['label_t'][t])] = 1
-                if firstDataFlag:
-                    y_data = segmentedRollouts[rollout]['x'][t+1]
-                    x_data = np.hstack((segmentedRollouts[rollout]['x'][t], segmentedRollouts[rollout]['u'][t], segmentedRollouts[rollout]['label'][t], segmentedRollouts[rollout]['label_t'][t]))
-                    firstDataFlag = False
-                else:
-                    y_data = np.vstack((y_data, segmentedRollouts[rollout]['x'][t+1]))
-                    x_data = np.vstack((x_data, np.hstack((segmentedRollouts[rollout]['x'][t], segmentedRollouts[rollout]['u'][t], segmentedRollouts[rollout]['label'][t], segmentedRollouts[rollout]['label_t'][t]))))
-    return y_data, x_data
+def mergeGaussians(g1, g2, w1, w2):
+    '''
+    Merges two Gaussian distribution into single Gaussian
+    :param g1, g2: gaussian mean and covariance as a flatten vector
+    :param w1, w2: weights used for averaging the gaussians
+    :return: flatten merged Gaussian
+    '''
+    dim = int(0.5 * (-1 + sqrt(1 + 4 * len(g1))))
+    mu1 = g1[0:dim]
+    mu2 = g2[0:dim]
+    cov1 = np.reshape(g1[dim:], (-1, dim))
+    cov2 = np.reshape(g2[dim:], (-1, dim))
+    mu = w1*mu1 + w2*mu2
+    # For un-normalized weights
+    # cov = (w1*n1*cov1 + w2*n2*cov2 + np.matmul((w1*mu1 + w2*mu2), np.transpose((w1*mu1 + w2*mu2))))/((w1+w2)*(w1+w2)) - np.matmul(mu, np.transpose(mu))
+    # For normalized weights
+    cov = w1*cov1 + w2*cov2 + w1*np.matmul(mu1, np.transpose(mu1)) + w2*np.matmul(mu2, np.transpose(mu2)) - np.matmul(mu, np.transpose(mu))
+    return np.append(mu, cov)
+
+
+def scale(X, x_min, x_max):
+    '''
+    Performs standardization of vector
+    :param X: data vector
+    :param x_min, x_max: min and max range to scale
+    :return: scaled X
+    '''
+
+    nom = (X-X.min(axis=0))*(x_max-x_min)
+    denom = X.max(axis=0) - X.min(axis=0)
+    denom[denom==0] = 1
+    return x_min + nom/denom
+
+
+def computeDistance(f1, f2):
+    '''
+    Helper function for computing symmetric Bhattacharya distance between two Gaussian distribtion
+    :param f1, f2:
+    :return: Bhattacharya distance
+    '''
+    dim = int(0.5 * (-1 + sqrt(1 + 4 * len(f1))))
+    mf1 = f1[0:dim]
+    mf2 = f2[0:dim]
+    covf1 = np.reshape(f1[dim:], (-1, dim))
+    covf2 = np.reshape(f2[dim:], (-1, dim))
+    return .5 * (bhattacharyyaGaussian(mf1, covf1, mf2, covf2) + bhattacharyyaGaussian(mf2, covf2, mf1, covf1))
+
+
+def bhattacharyyaGaussian(pm, pv, qm, qv):
+    '''
+    Computes Bhattacharyya value between two Gaussians
+    :param pm, pv: mean and covariance of first Gaussian
+    :param qm, qv: mean and covariance of second Gaussian
+    :return: Bhattacharya value
+    :Author - TODO: ADD
+    '''
+    # Difference between means pm, qm
+    diff = np.expand_dims((qm - pm), axis=1)
+    # Interpolated variances
+    pqv = (pv + qv) / 2.
+    # Log-determinants of pv, qv
+    ldpv = np.linalg.det(pv)
+    ldqv = np.linalg.det(qv)
+    # Log-determinant of pqv
+    ldpqv = np.linalg.det(pqv)
+    # "Shape" component (based on covariances only)
+    # 0.5 log(|\Sigma_{pq}| / sqrt(\Sigma_p * \Sigma_q)
+    norm = 0.5 * np.log(ldpqv/(np.sqrt(ldpv*ldqv)))
+    # "Divergence" component (actually just scaled Mahalanobis distance)
+    # 0.125 (\mu_q - \mu_p)^T \Sigma_{pq}^{-1} (\mu_q - \mu_p)
+    temp = np.matmul(diff.transpose(), np.linalg.pinv(pqv))
+    dist = 0.125 * np.matmul(temp, diff)
+    return np.float(dist + norm)
+
+
+def fitGaussianDistribution(traj, features, transitions, minLength, gaussianEps):
+    '''
+    Fits Multivariate Gaussian distribution to a segment of trajectory
+    :param traj: states from a trajectory statement (e.g position/velocity)
+    :param feature: additional features to be used (e.g actions, contact force)
+    :param transitions: transtions detected in the trajectory
+    :param minLength: parameter used to check sufficient length of trajectory
+    :param gaussianEps: eps parameter added along the diagonal to avoid singular Gaussian covariance
+    :return: flatten Gaussian mean and covariance
+    '''
+    nseg = len(transitions)
+    dynamicMat = []
+    selectedSeg = []
+    for k in range(0, nseg - 1):
+        # Ensuring at least minLength samples is there between two transition point
+        if (transitions[k + 1] - transitions[k]) > minLength:
+            # x_t_1 = traj[(transitions[k] + 1):(transitions[k + 1] + 1), :]
+            x_t = traj[transitions[k]:transitions[k + 1], :]
+            f_t = features[transitions[k]:transitions[k + 1], :]
+            feature_vect = np.hstack((x_t, f_t))
+            meanGaussian = np.mean(feature_vect, axis=0)
+            covGaussian = np.cov(feature_vect, rowvar=0)
+            covGaussian = covGaussian + np.identity(covGaussian.shape[0], dtype=float)*gaussianEps
+            # Check for singular matrics
+            assert np.linalg.cond(covGaussian) < 1 / sys.float_info.epsilon
+
+            selectedSeg.append(np.array([transitions[k], transitions[k + 1]]))
+            dynamicMat.append(np.append(meanGaussian, covGaussian))
+
+    return np.array(dynamicMat), np.array(selectedSeg)
+
+
+def smoothing(indices):
+    '''
+    Helper function to remove redundant transition points
+    :param indices: transition indices
+    :return: filtered transition indices
+    '''
+    newIndices = indices
+    for i in range(1, len(indices) - 1):
+        if indices[i] != indices[i - 1] and indices[i] != indices[i + 1] and indices[i + 1] == indices[i - 1]:
+            newIndices[i] = indices[i + 1]
+
+    return newIndices
+
+
+def identifyTransitions(traj, window_size, weight_prior, n_components):
+    '''
+    Transition detection function based on DPGMM and windowing approach
+    :param traj: trajectory with states, action, contact forces
+    :param window_size: windows size used to accumulate states
+    :param weight_prior, n_components: parameter used for DPGMM
+    :return: transition points (index) in the trajectory
+    '''
+    total_size = traj.shape[0]
+    dim = traj.shape[1]
+    demo_data_array = np.zeros((total_size - window_size, dim * window_size))
+    inc = 0
+    for i in range(window_size, total_size):
+        window = traj[i - window_size:i, :]
+        demo_data_array[inc, :] = np.reshape(window, (1, dim * window_size))
+        inc = inc + 1
+
+    estimator = BayesianGaussianMixture(n_components=n_components, n_init=10, max_iter=300, weight_concentration_prior=weight_prior, init_params='random', verbose=False)
+    labels = estimator.fit_predict(demo_data_array)
+    filtabels = smoothing(labels)
+    inc = 0
+    transitions = []
+    for j in range(window_size, total_size):
+
+        if inc == 0 or j == window_size:
+            pass  # self._transitions.append((i,0))
+        elif j == (total_size - 1):
+            pass  # self._transitions.append((i,n-1))
+        elif filtabels[inc - 1] != filtabels[inc]:
+            transitions.append(j - window_size)
+        inc = inc + 1
+
+    transitions.append(0)
+    transitions.append(total_size - 1)
+    transitions.sort()
+
+    # print("[TSC] Discovered Transitions (number): ", len(transitions))
+    return transitions

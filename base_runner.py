@@ -14,12 +14,16 @@ import pickle
 
 
 def sample_trajectory(pi, env, horizon=150, batch_size=12000, stochastic=True, render=False):
-    GOAL = np.array([0, 0.5])
+    GOAL = np.array([0.05, 0.05, 0.05])
     sampleInd = 0
+    if render:
+        env.setRender(True)
+    else:
+        env.setRender(False)
     ac = env.action_space.sample() # not used, just so we have the datatype
     new = True # marks if we're on first timestep of an episode
     ob = env.reset()
-
+    cF = env.getContactForce()
     cur_ep_ret = 0 # return in current episode
     cur_ep_len = 0 # len of current episode
     ep_rets = [] # returns of completed episodes in this segment
@@ -27,7 +31,7 @@ def sample_trajectory(pi, env, horizon=150, batch_size=12000, stochastic=True, r
 
     # Initialize history arrays
     obs = np.array([ob for _ in range(batch_size)])
-    cFs = np.zeros(batch_size, 'float32')
+    cFs = np.array([cF for _ in range(batch_size)])
     rews = np.zeros(batch_size, 'float32')
     vpreds = np.zeros(batch_size, 'float32')
     news = np.zeros(batch_size, 'int32')
@@ -51,13 +55,15 @@ def sample_trajectory(pi, env, horizon=150, batch_size=12000, stochastic=True, r
         #print(observations[t] - obs[sampleInd])
         # Take step in environment
         ob, rew, new, _ = env.step(ac)
+        if render:
+            env.render()
         rews[sampleInd] = rew
         cFs[sampleInd] = env.getContactForce()
-
+        #print(cFs[sampleInd])
         cur_ep_ret += rew
         cur_ep_len += 1
 
-        dist = ob[:2]-GOAL
+        dist = ob[:3]-GOAL
         if np.linalg.norm(dist) < 0.025 and new_rollout:
             insertion = insertion+1
             new_rollout = False
@@ -72,10 +78,13 @@ def sample_trajectory(pi, env, horizon=150, batch_size=12000, stochastic=True, r
             cur_ep_len = 0
             new = True #Done is true
             env.close()
+            env.setRender(False)
             ob = env.reset()
             new_rollout = True
+            render = False
             t = 0
 
+    env.close()
     print("\n Maximum Reward this iteration: ", max(ep_rets), " \n")
     seg = {"ob": obs, "rew": rews, "vpred": vpreds, "new": news, "ac": acs, "prevac": prevacs, "nextvpred": vpred * (1 - new), "ep_rets": ep_rets, "ep_lens": ep_lens, "success": insertion, 'contactF': cFs}
     return seg
@@ -184,12 +193,15 @@ def learn(env, model_path, policy_fn, *,
             raise NotImplementedError
 
         logger.log("********** Iteration %i ************"%iters_so_far)
-
-        seg = sample_trajectory(pi, env, horizon=horizon, batch_size=batch_size_per_episode, stochastic=True, render=False)
+        if iters_so_far >= 90:
+            render = True
+        else:
+            render = False
+        seg = sample_trajectory(pi, env, horizon=horizon, batch_size=batch_size_per_episode, stochastic=True, render=render)
         data = {'seg': seg}
         p.append(data)
         del data
-        pickle.dump(p, open("data/base_actor_critic_bulletExp4.pkl", "wb"))
+        pickle.dump(p, open("data/base_actor_critic_blockSlideExp2.pkl", "wb"))
 
         add_vtarg_and_adv(seg, gamma, lam)
 
@@ -216,7 +228,7 @@ def learn(env, model_path, policy_fn, *,
         lens, rews = map(flatten_lists, zip(*listoflrpairs))
         lenbuffer.extend(lens)
         rewbuffer.extend(rews)
-        logger.record_tabular("SuccessInsertion", seg["success"])
+        logger.record_tabular("Success", seg["success"])
         logger.record_tabular("EpLenMean", np.mean(lenbuffer))
         logger.record_tabular("EpRewMean", np.mean(rewbuffer))
         logger.record_tabular("EpThisIter", len(lens))

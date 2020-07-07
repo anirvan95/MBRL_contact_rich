@@ -1,5 +1,5 @@
 """
-2D Block Insertion environment converted from Mujoco
+3D Block Sliding envirionment
 """
 import os, inspect
 
@@ -22,17 +22,17 @@ from pkg_resources import parse_version
 
 logger = logging.getLogger(__name__)
 
-GOAL = np.array([0, 0.52])  # change here
-INIT = np.array([-0.3, 0.8])  # pos1
-# INIT = np.array([0.0, -0.1]) # pos2
-# INIT = np.array([0.5, 0.3]) # pos3
+'''
+# Change environment configuration here
+'''
+GOAL = np.array([0.05, 0.05, 0.05])
+INIT = np.array([0.2, 0.5, 0.4])
 
 ACTION_SCALE = 1e-3
-# ACTION_SCALE = 1e-5
 STATE_SCALE = 10
 
 
-class Block2DEnv(gym.Env):
+class Block3DEnv(gym.Env):
     metadata = {'render.modes': ['human', 'rgb_array'], 'video.frames_per_second': 30}
 
     def __init__(self, render=False):
@@ -40,10 +40,10 @@ class Block2DEnv(gym.Env):
         self._render_height = 200
         self._render_width = 320
         self._physics_client_id = -1
-        actuator_bound_low = np.array([-10, -10])
-        actuator_bound_high = np.array([10, 10])
+        actuator_bound_low = np.array([-10, -10, -10])
+        actuator_bound_high = np.array([10, 10, 10])
         self.action_space = spaces.Box(low=actuator_bound_low, high=actuator_bound_high)
-        observation_dim = 4
+        observation_dim = 6
         state_bound_low = np.full(observation_dim, -float('inf'))
         state_bound_high = np.full(observation_dim, float('inf'))
         self.observation_space = spaces.Box(low=state_bound_low, high=state_bound_high)
@@ -63,13 +63,14 @@ class Block2DEnv(gym.Env):
         p = self._p
         forceX = action[0]
         forceY = action[1]
+        forceZ = action[2]
         p.setJointMotorControl2(self.block, 0, p.TORQUE_CONTROL, force=forceX)
         p.setJointMotorControl2(self.block, 1, p.TORQUE_CONTROL, force=forceY)
+        p.setJointMotorControl2(self.block, 2, p.TORQUE_CONTROL, force=forceY)
         p.stepSimulation()
-        self.state = [p.getJointState(self.block, 0)[0], p.getJointState(self.block, 1)[0],
-                      p.getJointState(self.block, 0)[1], p.getJointState(self.block, 1)[1]]
+        self.state = [p.getJointState(self.block, 0)[0], p.getJointState(self.block, 1)[0], p.getJointState(self.block, 2)[0], p.getJointState(self.block, 0)[1], p.getJointState(self.block, 1)[1], p.getJointState(self.block, 2)[1]]
         done = False
-        pos = self.state[0:2]
+        pos = self.state[0:3]
         dist = pos - GOAL
         reward_dist = -STATE_SCALE * np.linalg.norm(dist)
         reward_ctrl = -ACTION_SCALE * np.square(action).sum()
@@ -92,22 +93,23 @@ class Block2DEnv(gym.Env):
 
             p = self._p
             p.resetSimulation()
-            self.slot_1 = p.loadURDF(os.path.join(pybullet_data.getDataPath(), "block_insert_fl1.urdf"))
-            self.slot_2 = p.loadURDF(os.path.join(pybullet_data.getDataPath(), "block_insert_fl2.urdf"))
-            self.slot_3 = p.loadURDF(os.path.join(pybullet_data.getDataPath(), "block_insert_fl3.urdf"))
-            self.block = p.loadURDF(os.path.join(pybullet_data.getDataPath(), "block.urdf"))
+            self.wall_1 = p.loadURDF(os.path.join(pybullet_data.getDataPath(), "block_slide_w1.urdf"))
+            self.wall_2 = p.loadURDF(os.path.join(pybullet_data.getDataPath(), "block_slide_w2.urdf"))
+            self.wall_3 = p.loadURDF(os.path.join(pybullet_data.getDataPath(), "block_slide_w3.urdf"))
+            self.block = p.loadURDF(os.path.join(pybullet_data.getDataPath(), "block3D.urdf"))
             self.timeStep = 0.01
             p.setGravity(0, 0, 0)
             p.setTimeStep(self.timeStep)
             p.setRealTimeSimulation(0)
             p.setJointMotorControl2(self.block, 0, p.VELOCITY_CONTROL, force=0)
             p.setJointMotorControl2(self.block, 1, p.VELOCITY_CONTROL, force=0)
+            p.setJointMotorControl2(self.block, 2, p.VELOCITY_CONTROL, force=0)
 
         p = self._p
         p.resetJointState(self.block, 0, INIT[0], 0)
         p.resetJointState(self.block, 1, INIT[1], 0)
-        self.state = [p.getJointState(self.block, 0)[0], p.getJointState(self.block, 1)[0],
-                      p.getJointState(self.block, 0)[1], p.getJointState(self.block, 1)[1]]
+        p.resetJointState(self.block, 2, INIT[2], 0)
+        self.state = [p.getJointState(self.block, 0)[0], p.getJointState(self.block, 1)[0], p.getJointState(self.block, 2)[0], p.getJointState(self.block, 0)[1], p.getJointState(self.block, 1)[1], p.getJointState(self.block, 2)[1]]
 
         return np.array(self.state)
 
@@ -152,34 +154,42 @@ class Block2DEnv(gym.Env):
         cForceX = []
         cForceY = []
         cForceZ = []
-        Fx = 0.0
-        Fy = 0.0
-        Fz = 0.0
+        nForceX = []
+        nForceY = []
+        nForceZ = []
+
+        nFx = 0.0
+        nFy = 0.0
+        nFz = 0.0
+        cFx = 0.0
+        cFy = 0.0
+        cFz = 0.0
         if len(contactInfo) > 0:
             for i in range(0, len(contactInfo)):
                 normalDir = np.array(contactInfo[i][7])
-                normalForce = contactInfo[i][9]
+                normalForce = float(contactInfo[i][9])
+                nForceX.append(np.multiply(normalDir, dirX)*normalForce)
+                nForceY.append(np.multiply(normalDir, dirY)*normalForce)
+                nForceZ.append(np.multiply(normalDir, dirZ)*normalForce)
                 fricDir1 = np.array(contactInfo[i][11])
-                fricForce1 = contactInfo[i][10]
+                fricForce1 = float(contactInfo[i][10])
                 fricDir2 = np.array(contactInfo[i][13])
-                fricForce2 = contactInfo[i][12]
-                cForceX.append(
-                    np.multiply(normalDir, dirX) * normalForce + np.multiply(fricDir1, dirX) * fricForce1 + np.multiply(
-                        fricDir2, dirX) * fricForce2)
-                cForceY.append(
-                    np.multiply(normalDir, dirY) * normalForce + np.multiply(fricDir1, dirY) * fricForce1 + np.multiply(
-                        fricDir2, dirY) * fricForce2)
-                cForceZ.append(
-                    np.multiply(normalDir, dirZ) * normalForce + np.multiply(fricDir1, dirZ) * fricForce1 + np.multiply(
-                        fricDir2, dirZ) * fricForce2)
+                fricForce2 = float(contactInfo[i][12])
+                cForceX.append(np.multiply(fricDir1, dirX) * fricForce1 + np.multiply(fricDir2, dirX) * fricForce2)
+                cForceY.append(np.multiply(fricDir1, dirY) * fricForce1 + np.multiply(fricDir2, dirY) * fricForce2)
+                cForceZ.append(np.multiply(fricDir1, dirZ) * fricForce1 + np.multiply(fricDir2, dirZ) * fricForce2)
 
-            Fx = np.mean(np.array(cForceX))
-            Fy = np.mean(np.array(cForceY))
-            Fz = np.mean(np.array(cForceZ))
-            if math.isnan(Fx):
-                Fx = 0
-            if math.isnan(Fy):
-                Fy = 0
-            if math.isnan(Fz):
-                Fz = 0
-        return np.array([Fx, Fy, Fz])
+            nFx = np.mean(np.array(nForceX))
+            nFy = np.mean(np.array(nForceY))
+            nFz = np.mean(np.array(nForceZ))
+            cFx = np.mean(np.array(cForceX))
+            cFy = np.mean(np.array(cForceY))
+            cFz = np.mean(np.array(cForceZ))
+            nFx = 0.0 if math.isnan(nFx) else nFx
+            nFy = 0.0 if math.isnan(nFy) else nFy
+            nFz = 0.0 if math.isnan(nFz) else nFz
+            cFx = 0.0 if math.isnan(cFx) else cFx
+            cFy = 0.0 if math.isnan(cFy) else cFy
+            cFz = 0.0 if math.isnan(cFz) else cFz
+
+        return np.array([nFx, nFy, nFz, cFx, cFy, cFz])

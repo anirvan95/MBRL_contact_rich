@@ -4,75 +4,8 @@ import numpy as np
 from common.distribution import DiagGaussianPdType
 import gym
 from common.mpi_running_mean_std import RunningMeanStd
-from common.model_learning_utils import LRPrediction
-from common.model_learning_utils import SVMPrediction
-import time
 import math
-
-
-def computeDistance_interest(ob):
-    xMin = -0.13
-    xMax = 0.24
-    yMin = 0.155
-    yMax = 0.835
-    distanceFactor = 10
-    squaredDist = 0.0
-
-    pointIn = (xMin < ob[0] < xMax and yMin < ob[1] < yMax)
-
-    if pointIn == 1:
-        disXMin = (ob[0] - xMin)*(ob[0] - xMin)
-        disXMax = (ob[0] - xMin)*(ob[0] - xMin)
-        disYMin = (ob[1] - yMin)*(ob[1] - yMin)
-        disYMax = (ob[1] - yMax)*(ob[1] - yMax)
-        squaredDist = min(disXMin, disXMax, disYMin, disYMax)
-        squaredDist = distanceFactor * squaredDist
-    else:
-        if ob[0] > xMax:
-            squaredDist = squaredDist + (ob[0] - xMax)*(ob[0] - xMax)
-        elif ob[0] < xMin:
-            squaredDist = squaredDist + (xMin - ob[0])*(xMin - ob[0])
-        if ob[1] > yMax:
-            squaredDist = squaredDist + (ob[1] - yMax)*(ob[1] - yMax)
-        elif ob[1] < yMin:
-            squaredDist = squaredDist + (yMin - ob[1])*(yMin - ob[1])
-
-    distance = np.sqrt(squaredDist)
-
-    return pointIn, distance
-
-
-def computeDistance_guard(ob):
-    xMin = -0.135
-    xMax = 0.245
-    yMin = 0.16
-    yMax = 0.84
-    distanceFactor = 10
-    squaredDist = 0.0
-
-    pointIn = (xMin < ob[0] < xMax and yMin < ob[1] < yMax)
-
-    if pointIn == 1:
-        disXMin = (ob[0] - xMin)*(ob[0] - xMin)
-        disXMax = (ob[0] - xMin)*(ob[0] - xMin)
-        disYMin = (ob[1] - yMin)*(ob[1] - yMin)
-        disYMax = (ob[1] - yMax)*(ob[1] - yMax)
-        squaredDist = min(disXMin, disXMax, disYMin, disYMax)
-        squaredDist = distanceFactor * squaredDist
-    else:
-        if ob[0] > xMax:
-            squaredDist = squaredDist + (ob[0] - xMax)*(ob[0] - xMax)
-        elif ob[0] < xMin:
-            squaredDist = squaredDist + (xMin - ob[0])*(xMin - ob[0])
-        if ob[1] > yMax:
-            squaredDist = squaredDist + (ob[1] - yMax)*(ob[1] - yMax)
-        elif ob[1] < yMin:
-            squaredDist = squaredDist + (yMin - ob[1])*(yMin - ob[1])
-
-    distance = np.sqrt(squaredDist)
-
-    return pointIn, distance
-
+from model_learning import partialHybridModel
 
 def dense3D2(x, size, name, option, num_options=1, weight_init=None, bias=True):
     w = tf1.get_variable(name + "/w", [num_options, x.get_shape()[1], size], initializer=weight_init)
@@ -93,7 +26,7 @@ class MlpPolicy(object):
             self._init(*args, **kwargs)
             self.scope = tf1.get_variable_scope().name
 
-    def _init(self, ob_space, ac_space, hid_size, num_hid_layers, num_options=2, term_prob=0.5, k=0.5, rg=10):
+    def _init(self, ob_space, ac_space, model, hid_size, num_hid_layers, num_options=2, term_prob=0.5, k=0.5, rg=10):
         assert isinstance(ob_space, gym.spaces.Box)
         self.state_in = []
         self.state_out = []
@@ -101,22 +34,18 @@ class MlpPolicy(object):
         self.rg = rg
         self.term_prob = term_prob
         self.num_options = num_options
-        self.nmodes = 1
         # Creating the policy network
         sequence_length = None
         self.ac_dim = ac_space.shape[0]
-
+        self.model = model
         ob = U.get_placeholder(name="ob", dtype=tf1.float32, shape=[sequence_length] + list(ob_space.shape))
         option = U.get_placeholder(name="option", dtype=tf1.int32, shape=[None])
-
         self.pdtype = pdtype = DiagGaussianPdType(ac_space.shape[0])
-
         with tf1.variable_scope("obfilter"):
             self.ob_rms = RunningMeanStd(shape=ob_space.shape)
-
         obz = tf1.clip_by_value((ob - self.ob_rms.mean) / self.ob_rms.std, -5.0, 5.0)
-
         last_out = obz
+
         # Value function
         for i in range(num_hid_layers[2]):
             last_out = tf1.nn.tanh(tf1.layers.dense(last_out, hid_size[2], name="vffc%i" % (i + 1), kernel_initializer=U.normc_initializer(1.0)))
@@ -148,53 +77,26 @@ class MlpPolicy(object):
     def act(self, stochastic, ob, option):
         ac1 = self._act(stochastic, ob[None], [option])
         return ac1[0]
-    '''
-    def init_hybridmodel(self, params_interest, params_guard):
-        self.intfc = LRPrediction(params_interest)
-        self.termfc = LRPrediction(params_guard)
-    
-    def learn_hybridmodel(self, intXD, intYD, termXD, termYD):
-        for datasets in range(0, len(intXD)):
-            if datasets == 0:
-                intX = intXD[datasets]
-                intY = intYD[datasets]
-                termX = termXD[datasets]
-                termY = termYD[datasets]
-            else:
-                intX = np.vstack((intX, intXD[datasets]))
-                intY = np.vstack((intY, intYD[datasets]))
-                termX = np.vstack((termX, termXD[datasets]))
-                termY = np.vstack((termY, termYD[datasets]))
-
-        self.intfc.train(intX, np.squeeze(intY))
-        self.termfc.train(termX, np.squeeze(termY))
-    '''
 
     def get_intfc(self, ob):
-        pointIn, distance = computeDistance_interest(ob)
-        scale = 30
-        if pointIn == 1:
-            value = -distance
-        else:
-            value = distance
-        prob_option_1 = 1/(1+math.exp(-scale*value))
-        prob_option_2 = 1 - prob_option_1
-        int_fc = np.array([[prob_option_1, prob_option_2]])
-        return int_fc
+        return self.model.getInterest(ob)
 
     def get_tpred(self, ob):
-        pointIn, distance = computeDistance_guard(ob)
-        scale = 35
-        if pointIn == 1:
-            value = -distance
-        else:
-            value = distance
-        prob_option_2 = 1 / (1 + math.exp(-scale * value))
-        prob_option_1 = 1 - prob_option_2
-        beta = np.array([[prob_option_1, prob_option_2]])
-        return beta
+        return self.model.getTermination(ob)
 
     def get_preds(self, ob):
+        beta = self.get_tpred(ob)
+        int_func = self.get_intfc(ob)
+        # Get V(s,w)
+        vpred = []
+        for opt in range(self.num_options):
+            vpred.append(self.get_vpred(ob, [opt])[0])
+        vpred = np.array(vpred).T
+        op_vpred = np.sum((int_func * vpred), axis=1)  # Get V(s)
+
+        return beta, vpred, op_vpred
+
+    def get_preds_adv(self, ob):
         # Get B(s,w)
         '''
         beta = []
@@ -218,6 +120,16 @@ class MlpPolicy(object):
         return beta, vpred, op_vpred, op_prob, int_func
 
     def get_option(self, ob):
+        int_func = self.get_intfc(ob)
+        activated_options = int_func
+        vpred = []
+        # max Q(s,w)
+        for opt in range(self.num_options):
+            vpred.append(int_func[opt]*self.get_vpred(ob, [opt])[0])
+        option = vpred[np.where(vpred == np.amax(vpred))[0]]
+        return option, activated_options
+
+    def get_option_adv(self, ob):
 
         op_prob = self._get_op([ob])
         int_func = self.get_intfc(ob)
@@ -233,13 +145,10 @@ class MlpPolicy(object):
         if 1. not in activated_options:
             for i in indices:
                 activated_options[i] = 1.
-
         try:
             pi_I = op_prob[0] * (activated_options * int_func) / np.sum(op_prob[0] * (activated_options * int_func), axis=1)
         except ValueError:
-            print(op_prob[0].shape)
-            print(activated_options.shape)
-            print(int_func.shape)
+            print("Value error in option selection")
 
         return np.random.choice(range(len(op_prob[0][0])), p=pi_I[0]), activated_options
 

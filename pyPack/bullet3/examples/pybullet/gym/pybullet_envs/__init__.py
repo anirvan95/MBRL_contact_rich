@@ -45,6 +45,11 @@ register(
     max_episode_steps=1000,
 )
 
+register(
+    id='Block3D-v1',
+    entry_point='pybullet_envs.bullet:Block3DEnv',
+    max_episode_steps=1000,
+)
 
 register(
     id='MinitaurBulletEnv-v0',
