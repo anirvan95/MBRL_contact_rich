@@ -7,6 +7,7 @@ from common.mpi_running_mean_std import RunningMeanStd
 import math
 from model_learning import partialHybridModel
 
+
 def dense3D2(x, size, name, option, num_options=1, weight_init=None, bias=True):
     w = tf1.get_variable(name + "/w", [num_options, x.get_shape()[1], size], initializer=weight_init)
     ret = tf1.matmul(x, w[option[0]])
@@ -87,12 +88,13 @@ class MlpPolicy(object):
     def get_preds(self, ob):
         beta = self.get_tpred(ob)
         int_func = self.get_intfc(ob)
-        # Get V(s,w)
+        # Get Q(s,w)
         vpred = []
         for opt in range(self.num_options):
             vpred.append(self.get_vpred(ob, [opt])[0])
         vpred = np.array(vpred).T
-        op_vpred = np.sum((int_func * vpred), axis=1)  # Get V(s)
+        # Get V(s)
+        op_vpred = np.sum((int_func * vpred), axis=1)
 
         return beta, vpred, op_vpred
 
@@ -126,7 +128,8 @@ class MlpPolicy(object):
         # max Q(s,w)
         for opt in range(self.num_options):
             vpred.append(int_func[opt]*self.get_vpred(ob, [opt])[0])
-        option = vpred[np.where(vpred == np.amax(vpred))[0]]
+        vpred = np.array(vpred)
+        option = np.where(vpred == np.amax(vpred))[0][0]
         return option, activated_options
 
     def get_option_adv(self, ob):

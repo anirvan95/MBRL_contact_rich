@@ -14,7 +14,6 @@ import pickle
 
 
 def sample_trajectory(pi, env, horizon=150, batch_size=12000, stochastic=True, render=False):
-    GOAL = np.array([0.05, 0.05, 0.05])
     sampleInd = 0
     if render:
         env.setRender(True)
@@ -32,15 +31,15 @@ def sample_trajectory(pi, env, horizon=150, batch_size=12000, stochastic=True, r
     # Initialize history arrays
     obs = np.array([ob for _ in range(batch_size)])
     cFs = np.array([cF for _ in range(batch_size)])
+
     rews = np.zeros(batch_size, 'float32')
     vpreds = np.zeros(batch_size, 'float32')
     news = np.zeros(batch_size, 'int32')
     acs = np.array([ac for _ in range(batch_size)])
     prevacs = acs.copy()
 
-    insertion = 0
-    new_rollout = True
-    t = 0
+    success = 0
+    successFlag = False
     while sampleInd < batch_size:
         prevac = ac
         ac, vpred = pi.act(stochastic, ob)
@@ -52,26 +51,26 @@ def sample_trajectory(pi, env, horizon=150, batch_size=12000, stochastic=True, r
         vpreds[sampleInd] = vpred * (1 - new)
         news[sampleInd] = new
 
-        #print(observations[t] - obs[sampleInd])
         # Take step in environment
         ob, rew, new, _ = env.step(ac)
-        if render:
-            env.render()
         rews[sampleInd] = rew
         cFs[sampleInd] = env.getContactForce()
-        #print(cFs[sampleInd])
+
+        if render:
+            env.render()
+            print("Contact Info: :", cFs[sampleInd])
+
         cur_ep_ret += rew
         cur_ep_len += 1
 
-        dist = ob[:3]-GOAL
-        if np.linalg.norm(dist) < 0.025 and new_rollout:
-            insertion = insertion+1
-            new_rollout = False
+        dist = env.getGoalDist()
+        if np.linalg.norm(dist) < 0.025 and not successFlag:
+            success = success+1
+            successFlag = True
 
-        t += 1
         sampleInd += 1
 
-        if new or (t > 0 and t == horizon):
+        if new or (sampleInd > 0 and sampleInd % horizon == 0):
             ep_rets.append(cur_ep_ret)
             ep_lens.append(cur_ep_len)
             cur_ep_ret = 0
@@ -80,13 +79,12 @@ def sample_trajectory(pi, env, horizon=150, batch_size=12000, stochastic=True, r
             env.close()
             env.setRender(False)
             ob = env.reset()
-            new_rollout = True
+            successFlag = False
             render = False
-            t = 0
 
     env.close()
     print("\n Maximum Reward this iteration: ", max(ep_rets), " \n")
-    seg = {"ob": obs, "rew": rews, "vpred": vpreds, "new": news, "ac": acs, "prevac": prevacs, "nextvpred": vpred * (1 - new), "ep_rets": ep_rets, "ep_lens": ep_lens, "success": insertion, 'contactF': cFs}
+    seg = {"ob": obs, "rew": rews, "vpred": vpreds, "new": news, "ac": acs, "prevac": prevacs, "nextvpred": vpred * (1 - new), "ep_rets": ep_rets, "ep_lens": ep_lens, "success": success, 'contactF': cFs}
     return seg
 
 
@@ -170,7 +168,7 @@ def learn(env, model_path, policy_fn, *,
     p = [] #for saving the rollouts
 
     if retrain == True:
-        print("Retraining to New Goal")
+        print("Retraining the policy from saved path")
         time.sleep(2)
         U.load_state(model_path)
 
@@ -193,7 +191,7 @@ def learn(env, model_path, policy_fn, *,
             raise NotImplementedError
 
         logger.log("********** Iteration %i ************"%iters_so_far)
-        if iters_so_far >= 90:
+        if iters_so_far >= 70:
             render = True
         else:
             render = False
@@ -201,7 +199,7 @@ def learn(env, model_path, policy_fn, *,
         data = {'seg': seg}
         p.append(data)
         del data
-        pickle.dump(p, open("data/base_actor_critic_blockSlideExp2.pkl", "wb"))
+        pickle.dump(p, open("data/base_actor_critic_blcSlid1.pkl", "wb"))
 
         add_vtarg_and_adv(seg, gamma, lam)
 
@@ -211,13 +209,14 @@ def learn(env, model_path, policy_fn, *,
         d = Dataset(dict(ob=ob, ac=ac, atarg=atarg, vtarg=tdlamret), deterministic=pi.recurrent)
         optim_batchsize = optim_batchsize or ob.shape[0]
 
-        if hasattr(pi, "ob_rms"): pi.ob_rms.update(ob) # update running mean/std for policy
+        if hasattr(pi, "ob_rms"):
+            pi.ob_rms.update(ob)  # update running mean/std for policy
 
-        assign_old_eq_new() # set old parameter values to new parameter values
+        assign_old_eq_new()  # set old parameter values to new parameter values
         logger.log("Optimizing...")
         # Here we do a bunch of optimization epochs over the data
         for _ in range(optim_epochs):
-            losses = [] # list of tuples, each of which gives the loss for a minibatch
+            losses = []  # list of tuples, each of which gives the loss for a minibatch
             for batch in d.iterate_once(optim_batchsize):
                 *newlosses, g = lossandgrad(batch["ob"], batch["ac"], batch["atarg"], batch["vtarg"], cur_lrmult)
                 adam.update(g, optim_stepsize * cur_lrmult)

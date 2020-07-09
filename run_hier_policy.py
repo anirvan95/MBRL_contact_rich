@@ -22,8 +22,8 @@ def train(env_id, num_iteration, seed, model_path=None):
     # Create TF session
     U.make_session().__enter__()
 
-    def policy_fn(name, ob_space, ac_space):
-        return option_critic_model.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space, hid_size=[32, 32, 16], num_hid_layers=[2, 2, 2], term_prob=0.5, k=0.5, rg=10)
+    def policy_fn(name, ob_space, ac_space, num_options):
+        return option_critic_model.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space, hid_size=[32, 32, 16], num_options=num_options, num_hid_layers=[2, 2, 2], term_prob=0.5, k=0.5, rg=10)
 
     # Create Mujoco environment
     env = gym.make(env_id)

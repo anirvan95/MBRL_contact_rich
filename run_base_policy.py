@@ -7,6 +7,7 @@ import pybullet_envs
 import os
 import time
 
+
 def train(env_id, num_iteration, seed, model_path=None):
     # Create TF session
     U.make_session(num_cpu=1).__enter__()
@@ -36,7 +37,7 @@ def train(env_id, num_iteration, seed, model_path=None):
     #env.close()
     if model_path:
         U.save_state(model_path)
-        print("Model saved skipped")
+        print("Model Saved")
 
     return pi
 
@@ -47,12 +48,11 @@ def main():
     parser.add_argument('--env', help='environment ID', type=str, default='Block3D-v1')
     parser.add_argument('--seed', help='RNG seed', type=int, default=1)
     parser.add_argument('--reward_scale', help='Reward scale factor. Default: 1.0', default=1.0, type=float)
-    parser.add_argument('--num_iteration', type=float, default=50)
-    parser.add_argument('--model_path', help='Path to save trained model to',
-                        default=os.path.join(logger.get_dir(), 'block_ppo'), type=str)
+    parser.add_argument('--num_iteration', type=float, default=75)
+    parser.add_argument('--model_path', help='Path to save trained model to', default=os.path.join(logger.get_dir(), 'block_ppo'), type=str)
     parser.add_argument('--log_path', help='Directory to save learning curve data.', default=None, type=str)
     parser.add_argument('--play', default=False, action='store_true')
-    parser.add_argument('--horizon', help='Maximum time horizon in each iteration', default=100, type=int)
+    parser.add_argument('--horizon', help='Maximum time horizon in each iteration', default=150, type=int)
 
     args = parser.parse_args()
     logger.configure(dir=args.log_path)

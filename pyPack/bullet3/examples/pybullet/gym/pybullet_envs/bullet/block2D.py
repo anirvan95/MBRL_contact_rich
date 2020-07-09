@@ -22,7 +22,7 @@ from pkg_resources import parse_version
 
 logger = logging.getLogger(__name__)
 
-GOAL = np.array([0, 0.52])  # change here
+GOAL = np.array([0, 0.5])  # change here
 INIT = np.array([-0.3, 0.8])  # pos1
 # INIT = np.array([0.0, -0.1]) # pos2
 # INIT = np.array([0.5, 0.3]) # pos3
@@ -54,6 +54,10 @@ class Block2DEnv(gym.Env):
 
     def _configure(self, display=None):
         self.display = display
+
+    def getGoalDist(self):
+        dist = self.state[0:2] - GOAL
+        return dist
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -152,34 +156,42 @@ class Block2DEnv(gym.Env):
         cForceX = []
         cForceY = []
         cForceZ = []
-        Fx = 0.0
-        Fy = 0.0
-        Fz = 0.0
+        nForceX = []
+        nForceY = []
+        nForceZ = []
+
+        nFx = 0.0
+        nFy = 0.0
+        nFz = 0.0
+        cFx = 0.0
+        cFy = 0.0
+        cFz = 0.0
         if len(contactInfo) > 0:
             for i in range(0, len(contactInfo)):
                 normalDir = np.array(contactInfo[i][7])
-                normalForce = contactInfo[i][9]
+                normalForce = float(contactInfo[i][9])
+                nForceX.append(np.multiply(normalDir, dirX) * normalForce)
+                nForceY.append(np.multiply(normalDir, dirY) * normalForce)
+                nForceZ.append(np.multiply(normalDir, dirZ) * normalForce)
                 fricDir1 = np.array(contactInfo[i][11])
-                fricForce1 = contactInfo[i][10]
+                fricForce1 = float(contactInfo[i][10])
                 fricDir2 = np.array(contactInfo[i][13])
-                fricForce2 = contactInfo[i][12]
-                cForceX.append(
-                    np.multiply(normalDir, dirX) * normalForce + np.multiply(fricDir1, dirX) * fricForce1 + np.multiply(
-                        fricDir2, dirX) * fricForce2)
-                cForceY.append(
-                    np.multiply(normalDir, dirY) * normalForce + np.multiply(fricDir1, dirY) * fricForce1 + np.multiply(
-                        fricDir2, dirY) * fricForce2)
-                cForceZ.append(
-                    np.multiply(normalDir, dirZ) * normalForce + np.multiply(fricDir1, dirZ) * fricForce1 + np.multiply(
-                        fricDir2, dirZ) * fricForce2)
+                fricForce2 = float(contactInfo[i][12])
+                cForceX.append(np.multiply(fricDir1, dirX) * fricForce1 + np.multiply(fricDir2, dirX) * fricForce2)
+                cForceY.append(np.multiply(fricDir1, dirY) * fricForce1 + np.multiply(fricDir2, dirY) * fricForce2)
+                cForceZ.append(np.multiply(fricDir1, dirZ) * fricForce1 + np.multiply(fricDir2, dirZ) * fricForce2)
 
-            Fx = np.mean(np.array(cForceX))
-            Fy = np.mean(np.array(cForceY))
-            Fz = np.mean(np.array(cForceZ))
-            if math.isnan(Fx):
-                Fx = 0
-            if math.isnan(Fy):
-                Fy = 0
-            if math.isnan(Fz):
-                Fz = 0
-        return np.array([Fx, Fy, Fz])
+            nFx = np.mean(np.array(nForceX))
+            nFy = np.mean(np.array(nForceY))
+            nFz = np.mean(np.array(nForceZ))
+            cFx = np.mean(np.array(cForceX))
+            cFy = np.mean(np.array(cForceY))
+            cFz = np.mean(np.array(cForceZ))
+            nFx = 0.0 if math.isnan(nFx) else nFx
+            nFy = 0.0 if math.isnan(nFy) else nFy
+            nFz = 0.0 if math.isnan(nFz) else nFz
+            cFx = 0.0 if math.isnan(cFx) else cFx
+            cFy = 0.0 if math.isnan(cFy) else cFy
+            cFz = 0.0 if math.isnan(cFz) else cFz
+
+        return np.array([nFx+cFx, nFy+cFy])

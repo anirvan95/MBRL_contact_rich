@@ -1,46 +1,78 @@
-import tensorflow as tf
 import networkx as nx
-import numpy as np
 from sklearn.cluster import DBSCAN
 from common.model_learning_utils import *
 from collections import deque
 
 
 class partialHybridModel(object):
-    def __init__(self, params):
+    def __init__(self, clustering_params, svm_grid_params, svm_params_interest, svm_params_guard, horizon, modes, options, rolloutSize, queueSize):
+        # Define the transition graph with single mode
         self.transitionGraph = nx.DiGraph()
         self.transitionGraph.add_node('null')
-        self.guardFunction = SVMPrediction(params)
-        self.modeFunction = SVMPrediction(params)
-        self.intFunction = np.zeros((self.preOptions, 1))
-        self.termFunction = np.ones((self.preOptions, 1))
-        self.model_learning_params = params
+        self.nOptions = 0
+        self.transitionGraph.add_weighted_edges_from([(0, 'null', self.nOptions)])
+
+        self.preOptions = options
         self.modeGaussians = []
         self.nModes = 0
-        self.nOptions = -1
-        self.horizon = params(1)
+        self.horizon = horizon
         self.dataset = []
-        self.preOptions = 10
         self.currentMode = 0
-        for m in range(0, params['expectedModes']):
-            self.dataset.append(deque(maxlen=100))
+        self.rolloutSize = rolloutSize
+        self.guardFunction = SVMPrediction(svm_params_interest, svm_grid_params)
+        self.modeFunction = SVMPrediction(svm_params_guard, svm_grid_params)
+        self.intFunction = np.zeros(self.preOptions)
+        self.termFunction = np.ones(self.preOptions)
+        self.clustering_params = clustering_params
+        for m in range(0, modes):
+            self.dataset.append(deque(maxlen=queueSize))
 
     def updateModel(self, rollouts):
-        self.learnModes(rollouts)
-        self.learnTranstionRelation(rollouts)
-        self.learnModeF()
-        self.learnGuardF()
+        #self.learnModes(rollouts)
+        #self.learnTranstionRelation(rollouts)
+        self.learnHardTG(rollouts)
+        if len(list(self.transitionGraph.nodes)) > 2:
+            self.learnModeF()
+            self.learnGuardF()
+
+    def learnHardTG(self, rollouts):
+        train_rollouts = int(self.clustering_params['per_train']*self.rolloutSize)
+        obs = rollouts['ob']
+        for rollout in range(0, train_rollouts):
+            states = obs[rollout * self.horizon:(self.horizon + rollout * self.horizon), :]
+            for t in range(0, len(states) - 1):
+                label = defineModeEnv2(states[t, :])
+                label_t = defineModeEnv2(states[t + 1, :])
+                dataDict = {'x': states[t, :], 'label': label, 'label_t': label_t}
+                self.dataset[int(label)].append(dataDict)
+                # Creating transition graph
+                if not self.transitionGraph.has_node(label):
+                    self.nOptions += 1
+                    self.transitionGraph.add_weighted_edges_from([(label, 'null', self.nOptions)])
+
+                if not self.transitionGraph.has_node(label_t):
+                    self.nOptions += 1
+                    self.transitionGraph.add_weighted_edges_from([(label_t, 'null', self.nOptions)])
+
+                if label != label_t:
+                    # Transition Detected
+                    if self.transitionGraph.has_edge(label, 'null'):
+                        self.transitionGraph.add_weighted_edges_from([(label, label_t, self.transitionGraph[label]['null']['weight'])])
+                        self.transitionGraph.remove_edge(label, 'null')
+
+                    elif not self.transitionGraph.has_edge(label, label_t) or self.transitionGraph.has_edge(label_t, label):
+                        self.nOptions += 1
+                        self.transitionGraph.add_weighted_edges_from([(label, label_t, self.nOptions)])
 
     def learnModes(self, rollouts):
         '''
         Performs clustering and assigns modes for possible segments of data
         :param rollouts: rollouts data from environment
         '''
-        train_rollouts = int(self.model_learning_params['per_train'])
+        train_rollouts = int(self.clustering_params['per_train'])
         obs = rollouts['ob']
         acs = rollouts['ac']
         cFs = rollouts['contactF']
-        nFs = rollouts['normalF']
         state_dim = obs.shape(1)
         segmented_traj = []
         segment_dynamics = []
@@ -49,11 +81,10 @@ class partialHybridModel(object):
             # velocity = obs[rollout * self.horizon:(self.horizon + rollout * self.horizon), int(state_dim/2):]
             # action = acs[rollout * self.horizon:(self.horizon + rollout * self.horizon), :]
             contactForce = cFs[rollout * self.horizon:(self.horizon + rollout * self.horizon), :]
-            normalForce = nFs[rollout * self.horizon:(self.horizon + rollout * self.horizon), :]
             t = np.expand_dims(np.arange(0, len(position)), axis=1)
-            feature_vect = np.hstack((t, position, contactForce, normalForce))
-            tp = identifyTransitions(feature_vect, self.model_learning_params['window_size'], self.model_learning_params['weight_prior'], self.model_learning_params['n_components'])
-            fittedModel, segTraj = fitGaussianDistribution(position, contactForce, tp, self.model_learning_params['minLength'], self.model_learning_params['guassianEps'])
+            feature_vect = np.hstack((t, position, contactForce))
+            tp = identifyTransitions(feature_vect, self.clustering_params['window_size'], self.clustering_params['weight_prior'], self.clustering_params['n_components'])
+            fittedModel, segTraj = fitGaussianDistribution(position, contactForce, tp, self.clustering_params['minLength'], self.clustering_params['guassianEps'])
             segmented_traj.append(np.array([rollout, segTraj]))
             if rollout == 0:
                 segment_dynamics = fittedModel
@@ -62,7 +93,7 @@ class partialHybridModel(object):
             rollout += 1
 
         segmented_traj = np.array(segmented_traj)
-        db = DBSCAN(eps=self.model_learning_params['DBeps'], min_samples=self.model_learning_params['DBmin_samples'], metric=computeDistance)
+        db = DBSCAN(eps=self.clustering_params['DBeps'], min_samples=self.clustering_params['DBmin_samples'], metric=computeDistance)
         labels = db.fit_predict(segment_dynamics)
         nClusters = len(set(labels)) - (1 if -1 in labels else 0)
         nNoise = list(labels).count(-1)
@@ -85,7 +116,7 @@ class partialHybridModel(object):
                 for i in range(0, len(self.modeGaussians)):
                     distance_vect[i] = computeDistance(self.modeGaussians[i], mergedClusterGaussian)
 
-                if np.amin(distance_vect) > self.model_learning_params['gaussDist']:
+                if np.amin(distance_vect) > self.clustering_params['gaussDist']:
                     # New mode
                     labels[index[0]] = self.nmodes
                     self.modeGaussians.append(mergedClusterGaussian)
@@ -94,7 +125,7 @@ class partialHybridModel(object):
                     # Previous Mode
                     closestMode = np.where(distance_vect == np.amin(distance_vect))[0][0]
                     labels[index[0]] = closestMode
-                    self.modeGaussians[closestMode] = mergeGaussians(mergedClusterGaussian, self.modeGaussians[closestMode], self.model_learning_params['weightCurrent'], self.model_learning_params['weightPrevious'])
+                    self.modeGaussians[closestMode] = mergeGaussians(mergedClusterGaussian, self.modeGaussians[closestMode], self.clustering_params['weightCurrent'], self.clustering_params['weightPrevious'])
 
         self.labels = labels
         self.segment_data = segmented_traj
@@ -105,7 +136,7 @@ class partialHybridModel(object):
         :param rollouts: rollouts data from environment
         '''
         # TODO: Better approach to avoid last segment
-        train_rollouts = int(self.model_learning_params['per_train'])-1
+        train_rollouts = int(self.clustering_params['per_train'])-1
         obs = rollouts['ob']
         acs = rollouts['ac']
         segCount = 0
@@ -148,39 +179,44 @@ class partialHybridModel(object):
     def learnGuardF(self):
         x = []
         y = []
-        for mode in range(0, len(self.dataset)):
-            modeData = self.dataset[mode]
-            for i in range(0, len(modeData)):
-                x.append(modeData[i]['x'])
-                y.append(modeData[i]['label_t'])
-        X = np.array(x)
-        Y = np.array(y)
-        # Updates the Guard Function
-        self.guardFunction.train(X, Y)
+        if len(list(self.transitionGraph.nodes)) > 2:
+            for mode in range(0, len(self.dataset)):
+                modeData = self.dataset[mode]
+                for i in range(0, len(modeData)):
+                    x.append(modeData[i]['x'])
+                    y.append(modeData[i]['label_t'])
+            X = np.array(x)
+            Y = np.array(y)
+            # Updates the Guard Function
+            self.guardFunction.train(X, Y)
 
     def learnModeF(self):
         x = []
         y = []
-        for mode in range(0, len(self.dataset)):
-            modeData = self.dataset[mode]
-            for i in range(0, len(modeData)):
-                x.append(modeData[i]['x'])
-                y.append(modeData[i]['label'])
-        X = np.array(x)
-        Y = np.array(y)
-        # Updates the ModeFunction
-        self.modeFunction.train(X, Y)
+        if len(list(self.transitionGraph.nodes)) > 2:
+            for mode in range(0, len(self.dataset)):
+                modeData = self.dataset[mode]
+                for i in range(0, len(modeData)):
+                    x.append(modeData[i]['x'])
+                    y.append(modeData[i]['label'])
+            X = np.array(x)
+            Y = np.array(y)
+            # Updates the ModeFunction
+            self.modeFunction.train(X, Y)
 
     def getInterest(self, ob):
-        predMode = self.modeFunction.predict(ob)
+        #predMode = self.modeFunction.predict([ob])
         mode = self.currentMode
         self.intFunction = np.zeros((self.preOptions, 1))
-        nextModes = self.transitionGraph.successors(mode)
-        for nextMode in range(0, nextModes):
-            option = self.transitionGraph[mode][nextMode]['weight']
+        nextModes = list(self.transitionGraph.successors(mode))
+        for i in range(0, len(nextModes)):
+            option = self.transitionGraph[mode][nextModes[i]]['weight']
             self.intFunction[option] = 1
 
+        return self.intFunction
+
     def getInterestAdv(self, ob):
+        #TODO:Under development
         mode = self.currentMode
         modes_prob = self.modeFunction.predict_f(ob)
         nextModes = self.transitionGraph.successors(mode)
@@ -190,19 +226,39 @@ class partialHybridModel(object):
             optionInd = self.transitionGraph[mode][nextMode]['weight']
             self.intFunction[optionInd] = norm_modes_prob[optionInd]
 
+        return self.intFunction
+
     def getTermination(self, ob):
-        # TODO: Check here for termination query
         mode = self.currentMode
-        next_modes_prob = self.guardFunction.predict_f(ob)
-        # Normalize
-        neighbourModes = self.transitionGraph.successors(mode) + self.transitionGraph.predecessors(mode)
-        norm_nmode_prob = next_modes_prob[neighbourModes]/sum(next_modes_prob[neighbourModes])
-        term_prob = 1 - norm_nmode_prob
         self.termFunction = np.ones((self.preOptions, 1))
-        nextModes = self.transitionGraph.successors(mode)
-        for nextMode in range(0, nextModes):
-            optionInd = self.transitionGraph[mode][nextMode]['weight']
-            self.termFunction[optionInd] = term_prob
+        local_group = list(self.transitionGraph.successors(mode)) + list(self.transitionGraph.predecessors(mode)) + list([mode])
+        if 'null' in local_group:
+            local_group.remove('null')
+        local_group.sort()
+        complete_graph = list(self.transitionGraph.nodes)
+        complete_graph.remove('null')
+        complete_graph.sort()
+
+        if len(list(self.transitionGraph.nodes)) > 2:
+            next_modes_prob = self.guardFunction.predict_f([ob])[0]
+            # Normalize
+            sum_prob = 0
+            for i in range(0, len(local_group)):
+                mode_index = complete_graph.index(local_group[i])
+                sum_prob += next_modes_prob[mode_index]
+
+            norm_nmode_prob = next_modes_prob[complete_graph.index(mode)]/sum_prob
+            term_prob = 1 - norm_nmode_prob
+            nextModes = list(self.transitionGraph.successors(mode))
+            for i in range(0, len(nextModes)):
+                optionInd = self.transitionGraph[mode][nextModes[i]]['weight']
+                self.termFunction[optionInd] = term_prob
+        else:
+            # Only one mode discovered, should not have any termination
+            optionInd = self.transitionGraph[mode]['null']['weight']
+            self.termFunction[optionInd] = 0
+
+        return self.termFunction
 
     def getNextMode(self, ob):
         mode = self.modeFunction.predict(ob)
@@ -231,5 +287,3 @@ class HybridModel(partialHybridModel):
             modeDynamics = multiDimGaussianProcess(self.expert_gp_params)
             modeDynamics.fit(X, Y)
             self.modeDynamicsModel.append(modeDynamics)
-
-    print("Mode Dynamics learned\n")

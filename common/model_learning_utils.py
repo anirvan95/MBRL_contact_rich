@@ -3,9 +3,44 @@ import gpflow
 import tensorflow as tf
 from sklearn.svm import SVC
 from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import GridSearchCV
 from sklearn.mixture import BayesianGaussianMixture
 from math import sqrt
 import sys
+
+def defineModeEnv1(point):
+    Mode_11 = [-0.1, 0.55, -0.05, 0.75]
+    Mode_12 = [-0.15, 0.25, 0.3, 0.75]
+    Mode_13 = [-0.05, 0.75, 1.15, 0.8]
+    Mode_21 = [-0.08, 0.45, 0.05, 0.55]
+    mode = 0
+    if Mode_11[0] <= point[0] <= Mode_11[2] and Mode_11[1] <=point[1] <=Mode_11[3]:
+        mode = 1
+    if Mode_12[0] <= point[0] <= Mode_12[2] and Mode_12[1] <=point[1] <=Mode_12[3]:
+        mode = 1
+    if Mode_13[0] <= point[0] <= Mode_13[2] and Mode_13[1] <= point[1] <= Mode_13[3]:
+        mode = 1
+    if Mode_21[0] <= point[0] <= Mode_21[2] and Mode_21[1] <= point[1] <= Mode_21[3]:
+        mode = 1
+
+    return mode
+
+
+def defineModeEnv2(point):
+    box_size = 0.1
+    bound = box_size/2 + 0.05
+    Mode_1 = [0, 1, 0, 1, 0, bound]
+    Mode_2 = [0, 1, 0, bound, bound, 1]
+    Mode_3 = [0, bound, bound, 1, bound, 1]
+    mode = 0
+    if Mode_1[0] <= point[0] <= Mode_1[1] and Mode_1[2] <= point[1] <= Mode_1[3] and Mode_1[4] <= point[2] <= Mode_1[5]:
+        mode = 1
+    elif Mode_2[0] <= point[0] <= Mode_2[1] and Mode_2[2] <= point[1] <= Mode_2[3] and Mode_2[4] <= point[2] <= Mode_2[5]:
+        mode = 2
+    elif Mode_3[0] <= point[0] <= Mode_3[1] and Mode_3[2] <= point[1] <= Mode_3[3] and Mode_3[4] <= point[2] <= Mode_3[5]:
+        mode = 3
+
+    return mode
 
 
 class multiDimGaussianProcess(object):
@@ -67,19 +102,24 @@ class SVMPrediction(object):
     :param svm_grid_params: parameters for grid search
     :param svm_params: parameters for training
     '''
-    def __init__(self, svm_params):
+    def __init__(self, svm_params, svm_grid_params):
         self.svm_params = svm_params
+        self.svm_grid_params = svm_grid_params
         self.clf = SVC(**self.svm_params)
+        self.grid_search = GridSearchCV(self.clf, **self.svm_grid_params)
+
+    def gridSearch(self, X, y):
+        self.grid_search.fit(X, y)
 
     def train(self, X, y):
-        self.clf.fit(X, y)
+        self.grid_search.fit(X, y)
 
     def predict(self, X):
-        mode = self.clf.predict(X)
+        mode = self.grid_search.predict(X)
         return mode
 
     def predict_f(self, X):
-        mode_prob = self.clf.predict_proba(X)
+        mode_prob = self.grid_search.predict_proba(X)
         return mode_prob
 
 

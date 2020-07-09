@@ -52,6 +52,10 @@ class Block3DEnv(gym.Env):
         self.viewer = None
         self._configure()
 
+    def getGoalDist(self):
+        dist = self.state[0:3] - GOAL
+        return dist
+
     def _configure(self, display=None):
         self.display = display
 
