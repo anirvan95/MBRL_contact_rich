@@ -8,36 +8,29 @@ import os
 import time
 
 
-def train(env_id, num_iteration, seed, model_path=None):
+def train(args, model_path=None, data_path=None):
     # Create TF session
     U.make_session(num_cpu=1).__enter__()
 
     def policy_fn(name, ob_space, ac_space):
-        return actor_critic_model.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space,
-                                            hid_size=32, num_hid_layers=2)
+        return actor_critic_model.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space, hid_size=32, num_hid_layers=2)
 
-    # Create Mujoco environment
-    env = gym.make(env_id)
+    # Create environment
+    env = gym.make(args.env)
     logger_path = logger.get_dir()
     env = Monitor(env, logger_path, allow_early_resets=True)
-    env.seed(seed)
-
+    env.seed(args.seed)
     # Train the policy using PPO & GAE in actor critic fashion
-    # Tune hyperparameters here, will be moved to main args for grid search
-
-    pi = base_runner.learn(env, model_path, policy_fn,
-                           horizon=150, batch_size_per_episode=int(150*50),
-                           clip_param=0.2, entcoeff=0.01,
-                           optim_epochs=50, optim_stepsize=5e-4, optim_batchsize=32,
-                           gamma=0.99, lam=0.95,
-                           max_timesteps=5e6, max_iters=num_iteration,
-                           adam_epsilon=1e-4, schedule='linear',
-                           retrain=False
+    pi = base_runner.learn(env, model_path, data_path, policy_fn, horizon=args.horizon, rollouts=args.rollouts,
+                           clip_param=args.clip_param, entcoeff=args.ent_coeff,
+                           optim_epochs=args.optim_epochs, optim_stepsize=args.optim_step_size, optim_batchsize=args.optim_batchsize,
+                           gamma=args.gamma, lam=args.lam, max_iters=args.num_iteration,
+                           adam_epsilon=args.adam_epsilon, schedule='linear',
+                           retrain=args.retrain
                            )
-    #env.close()
     if model_path:
         U.save_state(model_path)
-        print("Model Saved")
+        print("Policy Saved in - ", model_path)
 
     return pi
 
@@ -45,34 +38,53 @@ def train(env_id, num_iteration, seed, model_path=None):
 def main():
     import argparse
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--env', help='environment ID', type=str, default='Block3D-v1')
+    parser.add_argument('--env', help='environment ID', type=str, default='Block2D-v2')
     parser.add_argument('--seed', help='RNG seed', type=int, default=1)
-    parser.add_argument('--reward_scale', help='Reward scale factor. Default: 1.0', default=1.0, type=float)
-    parser.add_argument('--num_iteration', type=float, default=75)
-    parser.add_argument('--model_path', help='Path to save trained model to', default=os.path.join(logger.get_dir(), 'block_ppo'), type=str)
-    parser.add_argument('--log_path', help='Directory to save learning curve data.', default=None, type=str)
-    parser.add_argument('--play', default=False, action='store_true')
-    parser.add_argument('--horizon', help='Maximum time horizon in each iteration', default=150, type=int)
+    parser.add_argument('--horizon', help='Maximum time horizon in each episode', default=150, type=int)
+    parser.add_argument('--rollouts', help='Maximum rollouts sampled in each iterations', default=75, type=int)
+    parser.add_argument('--clip_param', help='Clipping parameter of PPO', default=0.2, type=float)
+    parser.add_argument('--ent_coeff', help='Entropy coefficient of PPO', default=0.01, type=float)
+    parser.add_argument('--optim_epochs', help='Maximum number of sub-epochs in optimization in each iteration', default=50, type=int)
+    parser.add_argument('--optim_step_size', help='Step size of sub-epochs in optimization in each iteration', default=3e-4, type=float)
+    parser.add_argument('--optim_batchsize', help='Maximum number of samples in optimization in each iteration', default=32, type=int)
+    parser.add_argument('--gamma', help='Discount factor of GAE', default=0.99, type=float)
+    parser.add_argument('--lam', help='Lambda term of GAE', default=0.95, type=int)
+    parser.add_argument('--adam_epsilon', help='Optimal step size', default=1e-4, type=float)
+    parser.add_argument('--num_iteration', help='Number of training iteration', type=float, default=100)
+    parser.add_argument('--retrain', help='Continued training, must provide saved model path', default=False, action='store_true')
+    parser.add_argument('--exp_path', help='Path to logs,model and data', default=os.path.join(logger.get_dir(), 'block_ppo'), type=str)
+    parser.add_argument('--play', help='Execute the trained policy', default=False, action='store_true')
 
     args = parser.parse_args()
-    logger.configure(dir=args.log_path)
+    if not os.path.exists(args.exp_path):
+        os.mkdir(args.exp_path)
+
+    log_path = args.exp_path + '/logs/'
+    model_path = args.exp_path + '/model/'
+    data_path = args.exp_path + '/data/'
+    if not os.path.exists(data_path):
+        os.mkdir(data_path)
+    if not os.path.exists(model_path):
+        os.mkdir(model_path)
+
+    logger.configure(dir=log_path)
 
     if not args.play:
         # Train the Model
         print("Training started.. !!")
-        train(args.env, num_iteration=args.num_iteration, seed=args.seed, model_path=args.model_path)
+        train(args, model_path, data_path)
     else:
         print("Setting up for replay")
         time.sleep(1)
+        args.num_iteration = 1
         # Load the saved model for demonstration
-        pi = train(args.env, num_iteration=1, seed=args.seed)
+        pi = train(args, model_path, data_path)
         U.load_state(args.model_path)
         env = gym.make(args.env)
         env.setRender(True)
         ob = env.reset()
         time_step = 0
         while True:
-
             action = pi.act(stochastic=False, ob=ob)[0]
             ob, reward, done, _ = env.step(action)
             env.render()

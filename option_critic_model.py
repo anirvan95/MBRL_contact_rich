@@ -6,6 +6,7 @@ import gym
 from common.mpi_running_mean_std import RunningMeanStd
 import math
 from model_learning import partialHybridModel
+import random
 
 
 def dense3D2(x, size, name, option, num_options=1, weight_init=None, bias=True):
@@ -27,18 +28,17 @@ class MlpPolicy(object):
             self._init(*args, **kwargs)
             self.scope = tf1.get_variable_scope().name
 
-    def _init(self, ob_space, ac_space, model, hid_size, num_hid_layers, num_options=2, term_prob=0.5, k=0.5, rg=10):
+    def _init(self, ob_space, ac_space, model, hid_size, num_hid_layers, num_options=2, term_prob=0.5, eps=0.01):
         assert isinstance(ob_space, gym.spaces.Box)
         self.state_in = []
         self.state_out = []
-        self.k = k
-        self.rg = rg
         self.term_prob = term_prob
         self.num_options = num_options
         # Creating the policy network
         sequence_length = None
         self.ac_dim = ac_space.shape[0]
         self.model = model
+        self.eps = eps
         ob = U.get_placeholder(name="ob", dtype=tf1.float32, shape=[sequence_length] + list(ob_space.shape))
         option = U.get_placeholder(name="option", dtype=tf1.int32, shape=[None])
         self.pdtype = pdtype = DiagGaussianPdType(ac_space.shape[0])
@@ -77,7 +77,7 @@ class MlpPolicy(object):
 
     def act(self, stochastic, ob, option):
         ac1 = self._act(stochastic, ob[None], [option])
-        return ac1[0]
+        return ac1[0][0]
 
     def get_intfc(self, ob):
         return self.model.getInterest(ob)
@@ -129,7 +129,18 @@ class MlpPolicy(object):
         for opt in range(self.num_options):
             vpred.append(int_func[opt]*self.get_vpred(ob, [opt])[0])
         vpred = np.array(vpred)
-        option = np.where(vpred == np.amax(vpred))[0][0]
+        max = float('-inf')
+        available_options = []
+        for opt in range(self.num_options):
+            if int_func[opt] == 1:
+                available_options.append(opt)
+                if vpred[opt][0] > max:
+                    option = opt
+                    max = vpred[opt][0]
+        p = np.random.random()
+        if p < self.eps:
+            option = random.choice(available_options)
+
         return option, activated_options
 
     def get_option_adv(self, ob):
@@ -140,7 +151,7 @@ class MlpPolicy(object):
         activated_options = []
         # Include option if the interest is high but option policy does not select it
         for int_val in int_func[0]:
-            if int_val >= self.k:
+            if int_val >= 0.5:
                 activated_options.append(1.)
             else:
                 activated_options.append(0.)
@@ -160,6 +171,3 @@ class MlpPolicy(object):
 
     def get_trainable_variables(self):
         return tf1.get_collection(tf1.GraphKeys.TRAINABLE_VARIABLES, self.scope)
-
-    def get_initial_state(self):
-        return []

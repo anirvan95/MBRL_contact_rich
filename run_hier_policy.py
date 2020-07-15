@@ -1,88 +1,147 @@
+import os
+import gym
+import pybullet_envs
+import time
+import numpy as np
+import hier_runner
+import logger
+import option_critic_model
 from common import tf_util as U
 from common.monitor import Monitor
-import logger
-import option_critic_model, hier_runner
-import gym
-import os
+import pickle
 
-clustering_params = {
+model_learning_params = {
     'per_train': 0.5,  # percentage of total rollouts to be trained
     'window_size': 2,  # window size of transition point clustering
     'weight_prior': 0.01,  # weight prior of DPGMM clustering for transition point
     'DBeps': 3.0,  # DBSCAN noise parameter for clustering segments
     'DBmin_samples': 2,  # DBSCAN minimum cluster size parameter for clustering segments
     'n_components': 2,  # number of DPGMM components to be used
-    'minLength': 8
+    'minLength': 8,  # minimum segment length for Gaussian modelling
+    'guassianEps': 1e-6,  # epsilon term added in Gaussian covariance
+    'queueSize': 5000  # buffer size of samples
 }
-lr_params_interest = {'C': 1, 'penalty': 'l2'}
-lr_params_guard = {'C': 1, 'penalty': 'l2'}
+svm_grid_params = {
+    'param_grid': {"C": np.logspace(-10, 10, endpoint=True, num=11, base=2.),
+                   "gamma": np.logspace(-10, 10, endpoint=True, num=11, base=2.)},
+    'scoring': 'accuracy',
+    # 'cv': 5,
+    'n_jobs': 2,
+    'iid': False,
+    'cv': 3,
+}
+svm_params_interest = {
+    'kernel': 'rbf',
+    'decision_function_shape': 'ovr',
+    'tol': 1e-06,
+    'probability': True,
+}
+svm_params_guard = {
+    'kernel': 'rbf',
+    'decision_function_shape': 'ovr',
+    'tol': 1e-06,
+    'probability': True,
+}
 
 
-def train(env_id, num_iteration, seed, model_path=None):
+def train(args, model_path=None, data_path=None):
     # Create TF session
     U.make_session().__enter__()
 
-    def policy_fn(name, ob_space, ac_space, num_options):
-        return option_critic_model.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space, hid_size=[32, 32, 16], num_options=num_options, num_hid_layers=[2, 2, 2], term_prob=0.5, k=0.5, rg=10)
+    def policy_fn(name, ob_space, ac_space, hybrid_model, num_options):
+        return option_critic_model.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space, hid_size=[16, 16, 32],
+                                             model=hybrid_model, num_options=num_options, num_hid_layers=[2, 2, 2],
+                                             term_prob=0.5)
 
-    # Create Mujoco environment
-    env = gym.make(env_id)
+    # Create environment
+    env = gym.make(args.env)
     logger_path = logger.get_dir()
     env = Monitor(env, logger_path, allow_early_resets=True)
-    env.seed(seed)
+    env.seed(args.seed)
 
-    # Train the policy using PPO & GAE in actor critic fashion
-    # Tune hyperparameters here, will be moved to main args for grid search
-    pi = hier_runner.learn(env, model_path, policy_fn, clustering_params, lr_params_interest, lr_params_guard, num_options=2,
-                           horizon=150,  # timesteps per actor per update
-                           clip_param=0.2, pol_entcoeff=0.02, op_entcoeff=0.01, # clipping parameter epsilon, entropy coeff
-                           optim_epochs=50, mainlr=3.0e-4, intlr=2.5e-4, optim_batchsize=32,  # optimization hypers
-                           gamma=0.99, lam=0.95,  # advantage estimation
-                           max_timesteps=3e6, max_episodes=0, max_iters=num_iteration, max_seconds=0,  # time constraint
-                           callback=None,  # you can do anything in the callback, since it takes locals(), globals()
-                           batch_size_per_episode=int(150*80),
-                           adam_epsilon=1e-4,
-                           schedule='linear',  # annealing for stepsize parameters (epsilon and adam)
-                           retrain=True
-                           )
-    env.close()
+    # Train the policy using model based option actor critic
+    pi, model = hier_runner.learn(env, model_path, data_path, policy_fn, model_learning_params, svm_grid_params,
+                                  svm_params_interest, svm_params_guard, modes=args.modes, rollouts=args.rollouts,
+                                  num_options=args.noptions,
+                                  horizon=args.horizon,  # timesteps per actor per update
+                                  clip_param=args.clip_param, ent_coeff=args.ent_coeff,
+                                  # clipping parameter epsilon, entropy coeff
+                                  optim_epochs=args.optim_epochs, optim_stepsize=args.optim_stepsize,
+                                  optim_batchsize=args.optim_batchsize,  # optimization hypers
+                                  gamma=args.gamma, lam=args.lam,  # advantage estimation
+                                  max_iters=args.num_iteration,  # time constraint
+                                  adam_epsilon=args.adam_epsilon,
+                                  schedule='constant',  # annealing for stepsize parameters (epsilon and adam)
+                                  retrain=args.retrain
+                                  )
     if model_path:
-        # U.save_state(model_path)
-        print("Model saving skipped")
+        U.save_state(model_path+'/')
+        model_file_name = model_path + '/hybrid_model.pkl'
+        pickle.dump(model, open(model_file_name, "wb"), pickle.HIGHEST_PROTOCOL)
+        print("Policy and Model saved in - ", model_path)
     return pi
 
 
 def main():
     import argparse
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--env', help='environment ID', type=str, default='Block2D-v1')
+    parser.add_argument('--env', help='environment ID', type=str, default='Block3D-v1')
+    parser.add_argument('--modes', help='Maximum modes expected in the environment', default=4, type=int)
+    parser.add_argument('--noptions', help='Maximum options(edges) expected in the environment', default=12, type=int)
     parser.add_argument('--seed', help='RNG seed', type=int, default=1)
-    parser.add_argument('--num_iteration', type=float, default=5)
-    parser.add_argument('--model_path', help='Path to save trained model to',
+    parser.add_argument('--horizon', help='Maximum time horizon in each episode', default=150, type=int)
+    parser.add_argument('--rollouts', help='Maximum rollouts sampled in each iterations', default=50, type=int)
+    parser.add_argument('--clip_param', help='Clipping parameter of PPO', default=0.2, type=float)
+    parser.add_argument('--ent_coeff', help='Entropy coefficient of PPO', default=0.01, type=float)
+    parser.add_argument('--optim_epochs', help='Maximum number of sub-epochs in optimization in each iteration',
+                        default=40, type=int)
+    parser.add_argument('--optim_stepsize', help='Step size of sub-epochs in optimization in each iteration',
+                        default=3e-4, type=float)
+    parser.add_argument('--optim_batchsize', help='Maximum number of samples in optimization in each iteration',
+                        default=32, type=int)
+    parser.add_argument('--gamma', help='Discount factor of GAE', default=0.99, type=float)
+    parser.add_argument('--lam', help='Lambda term of GAE', default=0.95, type=int)
+    parser.add_argument('--adam_epsilon', help='Optimal step size', default=1e-4, type=float)
+    parser.add_argument('--num_iteration', help='Number of training iteration', type=float, default=100)
+    parser.add_argument('--retrain', help='Continued training, must provide saved model path', default=False,
+                        action='store_true')
+    parser.add_argument('--exp_path', help='Path to logs,model and data',
                         default=os.path.join(logger.get_dir(), 'block_ppo'), type=str)
-    parser.add_argument('--log_path', help='Directory to save learning curve data.', default=None, type=str)
-    parser.add_argument('--play', default=False, action='store_true')
-    parser.add_argument('--horizon', help='Maximum time horizon in each iteration', default=150, type=int)
+    parser.add_argument('--play', help='Execute the trained policy', default=False, action='store_true')
 
     args = parser.parse_args()
-    logger.configure(dir=args.log_path)
+    if not os.path.exists(args.exp_path):
+        os.mkdir(args.exp_path)
+    log_path = args.exp_path + '/logs/'
+    model_path = args.exp_path + '/model'
+    data_path = args.exp_path + '/data'
+    if not os.path.exists(data_path):
+        os.mkdir(data_path)
+    if not os.path.exists(model_path):
+        os.mkdir(model_path)
+
+    logger.configure(dir=log_path)
 
     if not args.play:
         # Train the Model
-        train(args.env, num_iteration=args.num_iteration, seed=args.seed, model_path=args.model_path)
+        train(args, model_path, data_path)
     else:
+        print("Setting up for replay")
+        time.sleep(1)
+        args.num_iteration = 1
         # Load the saved model for demonstration
-        pi = train(args.env, num_iteration=1, seed=args.seed)
+        pi = train(args, model_path, data_path)
         U.load_state(args.model_path)
         env = gym.make(args.env)
+        env.setRender(True)
         ob = env.reset()
         time_step = 0
         while True:
-
             action = pi.act(stochastic=False, ob=ob)[0]
             ob, _, done, = env.step(action)
             env.render()
             time_step = time_step + 1
+            time.sleep(0.01)
             if done or time_step > args.horizon:
                 ob = env.reset()
                 time_step = 0

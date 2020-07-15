@@ -1,6 +1,7 @@
 from model_learning import partialHybridModel
 import pickle
 import numpy as np
+import time
 
 clustering_params = {
     'per_train': 0.5,  # percentage of total rollouts to be trained
@@ -36,21 +37,32 @@ svm_params_guard = {
     }
 
 
-f = open("data/base_actor_critic_blcSlid1.pkl", "rb")
+f = open("data/exp_blcIn_1.pkl", "rb")
 p = pickle.load(f)
 f.close()
-epoch_number = 22
-data = p[epoch_number]
-rollouts = data['seg']
 horizon = 150
-rolloutSize = 50
-modes = 4
-options = 12
-model = partialHybridModel(clustering_params, svm_grid_params, svm_params_interest, svm_params_guard, horizon, modes, options, rolloutSize)
-model.learnHardTG(rollouts)
-print("Done")
-print(list(model.transitionGraph.nodes))
-print(list(model.transitionGraph.edges))
+rolloutSize = 20
+modes = 2
+options = 4
+queueSize = 5000
+model = partialHybridModel(clustering_params, svm_grid_params, svm_params_interest, svm_params_guard, horizon, modes, options, rolloutSize, queueSize)
+i = 7
+data = p[i]
+rollouts = data['seg']
+stime = time.time()
+model.updateModel(rollouts)
+model.currentMode = 1
+mode1Data = model.dataset[1]
+x1 = mode1Data[0]['x']
+print(model.getNextMode(x1))
+
+'''
+print(model.transitionGraph.nodes)
+mode0Data = model.dataset[0]
+x0 = mode0Data[0]['x']
+print(model.getInterest(x0))
+
+
 model.learnGuardF()
 model.learnModeF()
 mode0Data = model.dataset[0]
@@ -73,4 +85,7 @@ model.currentMode = 1
 print(model.getTermination(x1))
 model.currentMode = 2
 print(model.getTermination(x2))
-
+print("Testing model learning")
+model.learnGuardF()
+model.learnModeF()
+'''

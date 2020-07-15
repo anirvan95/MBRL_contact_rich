@@ -40,8 +40,8 @@ class Block3DEnv(gym.Env):
         self._render_height = 200
         self._render_width = 320
         self._physics_client_id = -1
-        actuator_bound_low = np.array([-10, -10, -10])
-        actuator_bound_high = np.array([10, 10, 10])
+        actuator_bound_low = np.array([-15, -15, -15])
+        actuator_bound_high = np.array([15, 15, 15])
         self.action_space = spaces.Box(low=actuator_bound_low, high=actuator_bound_high)
         observation_dim = 6
         state_bound_low = np.full(observation_dim, -float('inf'))
@@ -70,7 +70,7 @@ class Block3DEnv(gym.Env):
         forceZ = action[2]
         p.setJointMotorControl2(self.block, 0, p.TORQUE_CONTROL, force=forceX)
         p.setJointMotorControl2(self.block, 1, p.TORQUE_CONTROL, force=forceY)
-        p.setJointMotorControl2(self.block, 2, p.TORQUE_CONTROL, force=forceY)
+        p.setJointMotorControl2(self.block, 2, p.TORQUE_CONTROL, force=forceZ)
         p.stepSimulation()
         self.state = [p.getJointState(self.block, 0)[0], p.getJointState(self.block, 1)[0], p.getJointState(self.block, 2)[0], p.getJointState(self.block, 0)[1], p.getJointState(self.block, 1)[1], p.getJointState(self.block, 2)[1]]
         done = False
@@ -119,9 +119,9 @@ class Block3DEnv(gym.Env):
 
     def render(self, mode='human', close=False):
         base_pos = [0, 0, 0]
-        self._cam_dist = 2
-        self._cam_pitch = 0.3
-        self._cam_yaw = 0
+        self._cam_dist = 3.0
+        self._cam_pitch = -29.6
+        self._cam_yaw = 136.0
 
         view_matrix = self._p.computeViewMatrixFromYawPitchRoll(
             cameraTargetPosition=base_pos,
@@ -129,7 +129,7 @@ class Block3DEnv(gym.Env):
             yaw=self._cam_yaw,
             pitch=self._cam_pitch,
             roll=0,
-            upAxisIndex=2)
+            upAxisIndex=1)
         proj_matrix = self._p.computeProjectionMatrixFOV(fov=60,
                                                          aspect=float(self._render_width) /
                                                                 self._render_height,

@@ -15,11 +15,14 @@ tf1.disable_v2_behavior()
 
 
 # collect trajectory
-def sample_trajectory(pi, model, env, horizon=150, batch_size=12000, render=False):
+def sample_trajectory(pi, model, env, horizon=150, rollouts=50, render=False):
     """
             Generates rollouts for policy optimization
     """
-    GOAL = np.array([0, 0.5])
+    if render:
+        env.setRender(True)
+    else:
+        env.setRender(False)
     ac = env.action_space.sample()  # not used, just so we have the datatype
     new = True  # marks if we're on first timestep of an episode
     ob = env.reset()
@@ -28,7 +31,7 @@ def sample_trajectory(pi, model, env, horizon=150, batch_size=12000, render=Fals
     cur_ep_len = 0  # len of current episode
     ep_rets = []  # returns of completed episodes in this segment
     ep_lens = []  # lengths of ...
-
+    batch_size = int(horizon * rollouts)
     # Initialise history of arrays
     obs = np.array([ob for _ in range(batch_size)])
     rews = np.zeros(batch_size, 'float32')
@@ -39,6 +42,7 @@ def sample_trajectory(pi, model, env, horizon=150, batch_size=12000, render=Fals
     last_options = np.zeros(batch_size, 'int32')
     acs = np.array([ac for _ in range(batch_size)])
     prev_acs = acs.copy()
+    model.currentMode = 0
     option, active_options_t = pi.get_option(ob)
     last_option = option
 
@@ -63,22 +67,23 @@ def sample_trajectory(pi, model, env, horizon=150, batch_size=12000, render=Fals
         prev_acs[sample_index] = prevac
         beta, vpred, op_vpred = pi.get_preds(ob)
 
-        betas.append(beta[0])
+        betas.append(beta)
         vpreds.append(vpred * (1 - new))
         op_vpreds.append(op_vpred)
         activated_options[sample_index] = active_options_t
 
         # Step in the environment
         ob, rew, new, _ = env.step(ac)
-        if render:
-            env.render()
 
         rews[sample_index] = rew
         curr_opt_duration += 1
         # check if current option is about to end in this state
         nbeta = pi.get_tpred(ob)
         tprob = nbeta[option]
-        #termination =
+
+        if render:
+            env.render()
+        # termination =
         if tprob >= pi.term_prob:
             opt_duration[option].append(curr_opt_duration)
             curr_opt_duration = 0.
@@ -88,14 +93,17 @@ def sample_trajectory(pi, model, env, horizon=150, batch_size=12000, render=Fals
 
         cur_ep_ret += rew
         cur_ep_len += 1
-        dist = ob[:3] - GOAL
+        dist = env.getGoalDist()
 
         if np.linalg.norm(dist) < 0.025 and not successFlag:
             success = success + 1
             successFlag = True
 
+        sample_index += 1
+
         if new or (sample_index > 0 and sample_index % horizon == 0):
             render = False
+            env.setRender(False)
             opt_duration[option].append(curr_opt_duration)
             curr_opt_duration = 0.
             ep_rets.append(cur_ep_ret)
@@ -105,11 +113,10 @@ def sample_trajectory(pi, model, env, horizon=150, batch_size=12000, render=Fals
             ob = env.reset()
             option, active_options_t = pi.get_option(ob)
             last_option = option
-            new_rollout = True
+            successFlag = False
             new = True
 
-        sample_index += 1
-
+    env.close()
     betas = np.array(betas)
     vpreds = np.array(vpreds).reshape(batch_size, num_options)
     op_vpreds = np.squeeze(np.array(op_vpreds))
@@ -117,7 +124,8 @@ def sample_trajectory(pi, model, env, horizon=150, batch_size=12000, render=Fals
     print("\n Maximum Reward this iteration: ", max(ep_rets), " \n")
     seg = {"ob": obs, "rew": rews, "vpred": np.array(vpreds), "op_vpred": np.array(op_vpreds), "new": news,
            "ac": acs, "opts": opts, "prevac": prev_acs, "nextvpred": vpred * (1 - new),
-           "nextop_vpred": op_vpred * (1 - new), "ep_rets": ep_rets, "ep_lens": ep_lens, 'term_p': betas, 'next_term_p': beta[0], "last_betas": last_betas,
+           "nextop_vpred": op_vpred * (1 - new), "ep_rets": ep_rets, "ep_lens": ep_lens, 'term_p': betas,
+           'next_term_p': beta, "last_betas": last_betas,
            "opt_dur": opt_duration, "activated_options": activated_options, "success": success}
 
     return seg
@@ -150,14 +158,13 @@ def add_vtarg_and_adv(seg, gamma, lam, num_options):
     seg["tdlamret"] = seg["adv"] + u_sw[range(len(opts)), opts]
 
 
-def learn(env, model_path, policy_fn, clustering_params, lr_params_interest, lr_params_guard, *, num_options=2,
+def learn(env, model_path, data_path, policy_fn, model_learning_params, svm_grid_params, svm_params_interest,
+          svm_params_guard, *, modes, rollouts, num_options=2,
           horizon,  # timesteps per actor per update
-          clip_param, pol_entcoeff=0.02, op_entcoeff=0.01,  # clipping parameter epsilon, entropy coeff
-          optim_epochs=10, mainlr=3e-4, intlr=1e-4, optim_batchsize=160,  # optimization hypers
+          clip_param, ent_coeff=0.02,  # clipping parameter epsilon, entropy coeff
+          optim_epochs=10, optim_stepsize=3e-4, optim_batchsize=160,  # optimization hypers
           gamma=0.99, lam=0.95,  # advantage estimation
-          max_timesteps=0, max_episodes=0, max_iters=0, max_seconds=0,  # time constraint
-          callback=None,  # you can do anything in the callback, since it takes locals(), globals()
-          batch_size_per_episode=15000,
+          max_iters=0,  # time constraint
           adam_epsilon=1.2e-4,
           schedule='linear',  # annealing for stepsize parameters (epsilon and adam)
           retrain=False
@@ -169,19 +176,20 @@ def learn(env, model_path, policy_fn, clustering_params, lr_params_interest, lr_
     ob_space = env.observation_space
     ac_space = env.action_space
 
-    model = partialHybridModel(lr_params_guard)
-    pi = policy_fn("pi", ob_space, ac_space)  # Construct network for new policy
-    oldpi = policy_fn("oldpi", ob_space, ac_space)  # Network for old policy
+    model = partialHybridModel(env, model_learning_params, svm_grid_params, svm_params_interest, svm_params_guard,
+                               horizon, modes, num_options, rollouts)
+    pi = policy_fn("pi", ob_space, ac_space, model, num_options)  # Construct network for new policy
+    oldpi = policy_fn("oldpi", ob_space, ac_space, model, num_options)  # Network for old policy
     atarg = tf1.placeholder(dtype=tf1.float32, shape=[None])  # Target advantage function (if applicable)
     ret = tf1.placeholder(dtype=tf1.float32, shape=[None])  # Empirical return
 
-    lrmult = tf1.placeholder(name='lrmult', dtype=tf1.float32, shape=[])  # learning rate multiplier, updated with schedule
+    lrmult = tf1.placeholder(name='lrmult', dtype=tf1.float32,
+                             shape=[])  # learning rate multiplier, updated with schedule
     clip_param = clip_param * lrmult  # Annealed cliping parameter epislon
 
     # Define placeholders for computing the advantage
     ob = U.get_placeholder_cached(name="ob")
     option = U.get_placeholder_cached(name="option")
-    op_adv = tf1.placeholder(dtype=tf1.float32, shape=[None])  # Target advantage function (if applicable)
     betas = tf1.placeholder(dtype=tf1.float32, shape=[None])  # Empirical return
 
     ac = pi.pdtype.sample_placeholder([None])
@@ -191,7 +199,7 @@ def learn(env, model_path, policy_fn, clustering_params, lr_params_interest, lr_
     ent = pi.pd.entropy()
     meankl = tf1.reduce_mean(kloldnew)
     meanent = tf1.reduce_mean(ent)
-    pol_entpen = (-pol_entcoeff) * meanent
+    pol_entpen = (-ent_coeff) * meanent
 
     ratio = tf1.exp(pi.pd.logp(ac) - oldpi.pd.logp(ac))  # pnew / pold
     surr1 = ratio * atarg  # surrogate from conservative policy iteration
@@ -205,17 +213,16 @@ def learn(env, model_path, policy_fn, clustering_params, lr_params_interest, lr_
 
     var_list = pi.get_trainable_variables()
     lossandgrad = U.function([ob, ac, atarg, ret, lrmult, option], losses + [U.flatgrad(total_loss, var_list)])
-    lossandgrad_vf = U.function([ob, ac, atarg, ret, lrmult, option], losses + [U.flatgrad(vf_loss, var_list)])
     adam = MpiAdam(var_list, epsilon=adam_epsilon)
 
-    assign_old_eq_new = U.function([], [], updates=[tf1.assign(oldv, newv)  for (oldv, newv) in zipsame(oldpi.get_variables(), pi.get_variables())])
+    assign_old_eq_new = U.function([], [], updates=[tf1.assign(oldv, newv) for (oldv, newv) in
+                                                    zipsame(oldpi.get_variables(), pi.get_variables())])
     compute_losses = U.function([ob, ac, atarg, ret, lrmult, option], losses)
 
     U.initialize()
     adam.sync()
 
-    currIter = 0
-    optim_stepsize = mainlr
+    # Prepare for rollouts
     episodes_so_far = 0
     timesteps_so_far = 0
     global iters_so_far
@@ -224,26 +231,18 @@ def learn(env, model_path, policy_fn, clustering_params, lr_params_interest, lr_
     lenbuffer = deque(maxlen=5)  # rolling buffer for episode lengths
     rewbuffer = deque(maxlen=5)  # rolling buffer for episode rewards
 
-
-    # Define variable to store states
-    p = []
+    p = []  # for saving the rollouts
 
     if retrain == True:
-        print("Retraining to New Goal")
+        print("Retraining the model")
         time.sleep(2)
         U.load_state(model_path)
+        #model = pickle.load()
+    max_timesteps = int(horizon * rollouts * max_iters)
 
     while True:
-        if callback: callback(locals(), globals())
-        if max_timesteps and timesteps_so_far >= max_timesteps:
+        if max_iters and iters_so_far >= max_iters:
             break
-        elif max_episodes and episodes_so_far >= max_episodes:
-            break
-        elif max_iters and iters_so_far >= max_iters:
-            break
-        elif max_seconds and time.time() - tstart >= max_seconds:
-            break
-
         if schedule == 'constant':
             cur_lrmult = 1.0
         elif schedule == 'linear':
@@ -253,11 +252,13 @@ def learn(env, model_path, policy_fn, clustering_params, lr_params_interest, lr_
 
         logger.log("********** Iteration %i ************" % iters_so_far)
         print("Collecting samples for policy optimization !! ")
-        stime = time.time()
-        render = True
-
-        seg = sample_trajectory(pi, model, env, horizon=horizon, batch_size=batch_size_per_episode, render=render)
-        print("Samples collected in !! :", time.time() - stime)
+        render = False
+        seg = sample_trajectory(pi, model, env, horizon=horizon, rollouts=rollouts, render=render)
+        data = {'seg': seg}
+        p.append(data)
+        del data
+        data_file_name = data_path + '/rollout_data.pkl'
+        pickle.dump(p, open(data_file_name, "wb"))
 
         datas = [0 for _ in range(num_options)]
         add_vtarg_and_adv(seg, gamma, lam, num_options)
@@ -279,12 +280,15 @@ def learn(env, model_path, policy_fn, clustering_params, lr_params_interest, lr_
 
         for opt in range(num_options):
             indices = np.where(opts == opt)[0]
+            print("Option: ", opt)
             print("Batch Size:", indices.size)
             opt_d[opt] = indices.size
             if not indices.size:
                 continue
 
-            datas[opt] = d = Dataset(dict(ob=ob[indices], ac=ac[indices], atarg=atarg[indices], vtarg=tdlamret[indices]), shuffle=not pi.recurrent)
+            datas[opt] = d = Dataset(
+                dict(ob=ob[indices], ac=ac[indices], atarg=atarg[indices], vtarg=tdlamret[indices]),
+                shuffle=not pi.recurrent)
 
             if indices.size < optim_batchsize:
                 print("Too few samples for opt - ", opt)
@@ -300,48 +304,25 @@ def learn(env, model_path, policy_fn, clustering_params, lr_params_interest, lr_
                 for batch in d.iterate_once(optim_batchsize_corrected):
                     *newlosses, grads = lossandgrad(batch["ob"], batch["ac"], batch["atarg"], batch["vtarg"],
                                                     cur_lrmult, [opt])
-                    adam.update(grads, mainlr * cur_lrmult)
+                    adam.update(grads, optim_stepsize * cur_lrmult)
                     losses.append(newlosses)
 
-        #Model update
+        # Model update
+        print("Updating model ")
         model.updateModel(seg)
+        print("Model graph:", model.transitionGraph.nodes)
+        print("Model options:", model.transitionGraph.edges)
+        edges = list(model.transitionGraph.edges)
+        for i in range(0, len(edges)):
+            print(edges[i][0], " -> ", edges[i][1], " : ", model.transitionGraph[edges[i][0]][edges[i][1]]['weight'])
+        # assert(model.nOptions < pi.num_options)
 
-        data = {'seg': seg}
-        p.append(data)
-        pickle.dump(p, open("data/option_critic_data_exp_13b.pkl", "wb"))
-        '''
-        # Update model with updated policy
-        rollouts = sample_trajectory_model_learning(pi, env, horizon=horizon, batch_size=int(batch_size_per_episode / 4))
-        print("Updating Model")
-        nmodes, segmentedRollouts, x_train, u_train, delx_train, label_train, label_t_train = hybridSegmentClustering(rollouts, num_options, clustering_params)
-        data = {'seg': seg, 'rollouts': rollouts}
-        p.append(data)
-        pickle.dump(p, open("data/option_critic_data_exp_8.pkl", "wb"))
-
-        if seg["success"] > 10 and model_learning_flag:
-            model_learning_flag = False
-            retain_model = True
-
-        if retain_model:
-            print("Going to retain model")
-            pi.nmodes = num_options
-        else:
-            pi.nmodes = nmodes
-
-        if nmodes == num_options:  # slight hack here, currently only testing with 2 modes, improve to nmodes
-            # xu_train = np.hstack((x_train, u_train))
-            x_train_dataset.append(x_train)
-            label_train_dataset.append(label_train)
-            label_t_train_dataset.append(label_t_train)
-            # xu_train_dataset.append(xu_train)
-            pi.learn_hybridmodel(x_train_dataset, label_train_dataset, x_train_dataset, label_t_train_dataset)
-        '''
         lrlocal = (seg["ep_lens"], seg["ep_rets"])  # local values
         listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal)  # list of tuples
         lens, rews = map(flatten_lists, zip(*listoflrpairs))
         lenbuffer.extend(lens)
         rewbuffer.extend(rews)
-        logger.record_tabular("SuccessInsertion", seg["success"])
+        logger.record_tabular("Success", seg["success"])
         logger.record_tabular("EpLenMean", np.mean(lenbuffer))
         logger.record_tabular("EpRewMean", np.mean(rewbuffer))
         logger.record_tabular("EpThisIter", len(lens))
@@ -353,3 +334,5 @@ def learn(env, model_path, policy_fn, clustering_params, lr_params_interest, lr_
         logger.record_tabular("TimeElapsed", time.time() - tstart)
         if MPI.COMM_WORLD.Get_rank() == 0:
             logger.dump_tabular()
+
+    return pi, model

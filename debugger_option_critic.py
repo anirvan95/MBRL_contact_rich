@@ -86,14 +86,14 @@ def sample_trajectory(pi, model, env, horizon=150, batch_size=12000, render=Fals
         prevac = ac
         ac = pi.act(True, ob, option)
         obs[sample_index] = ob
-        last_options[sample_index] = last_option
+        last_options[sample_index] = int(last_option)
         news[sample_index] = new
         opts[sample_index] = option
         acs[sample_index] = ac
         prev_acs[sample_index] = prevac
         beta, vpred, op_vpred = pi.get_preds(ob)
 
-        betas.append(beta[0])
+        betas.append(beta)
         vpreds.append(vpred * (1 - new))
         op_vpreds.append(op_vpred)
         activated_options[sample_index] = active_options_t
@@ -118,7 +118,7 @@ def sample_trajectory(pi, model, env, horizon=150, batch_size=12000, render=Fals
 
         cur_ep_ret += rew
         cur_ep_len += 1
-        dist = ob[:3] - GOAL
+        dist = env.getGoalDist()
 
         if np.linalg.norm(dist) < 0.025 and not successFlag:
             success = success + 1
@@ -135,21 +135,26 @@ def sample_trajectory(pi, model, env, horizon=150, batch_size=12000, render=Fals
             ob = env.reset()
             option, active_options_t = pi.get_option(ob)
             last_option = option
-            new_rollout = True
+            successFlag = False
             new = True
 
         sample_index += 1
 
     betas = np.array(betas)
+    print(betas)
+    print(betas.shape)
     vpreds = np.array(vpreds).reshape(batch_size, num_options)
     op_vpreds = np.squeeze(np.array(op_vpreds))
+    print(last_options)
+    print(range(len(last_options)))
     last_betas = betas[range(len(last_options)), last_options]
+    #TODO:add last_betas
+
     print("\n Maximum Reward this iteration: ", max(ep_rets), " \n")
     seg = {"ob": obs, "rew": rews, "vpred": np.array(vpreds), "op_vpred": np.array(op_vpreds), "new": news,
            "ac": acs, "opts": opts, "prevac": prev_acs, "nextvpred": vpred * (1 - new),
            "nextop_vpred": op_vpred * (1 - new), "ep_rets": ep_rets, "ep_lens": ep_lens, 'term_p': betas,
-           'next_term_p': beta[0], "last_betas": last_betas,
-           "opt_dur": opt_duration, "activated_options": activated_options, "success": success}
+           'next_term_p': beta[0], "opt_dur": opt_duration, "activated_options": activated_options, "success": success}
 
     return seg
 
@@ -163,7 +168,7 @@ env = gym.make('Block2D-v2')
 env.seed(1)
 U.initialize()
 
-num_options = 12
+num_options = 4
 optim_batchsize = 32
 clip_param = 0.2
 entcoeff = 0.0
@@ -176,7 +181,7 @@ cur_lrmult = 1.0
 mainlr = 3e-4
 horizon = 150
 rolloutSize = 50
-modes = 4
+modes = 2
 queueSize = 20000
 
 np.random.seed(1)
