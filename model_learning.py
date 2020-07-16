@@ -11,6 +11,7 @@ class partialHybridModel(object):
         # Define the transition graph with single mode
         self.transitionGraph = nx.DiGraph()
         self.transitionGraph.add_node('null')
+        self.prevModes = len(list(self.transitionGraph.nodes))
         self.nOptions = 0
         self.transitionGraph.add_weighted_edges_from([(0, 'null', self.nOptions)])
         self.env_id = env.unwrapped.spec.id
@@ -53,25 +54,26 @@ class partialHybridModel(object):
                 if not self.transitionGraph.has_node(label):
                     self.nOptions += 1
                     self.transitionGraph.add_weighted_edges_from([(label, 'null', self.nOptions)])
-                    self.transitionUpdated = True
 
                 if label != label_t:
                     # Transition Detected
-                    if self.transitionGraph.has_edge(label, 'null'):
-                        self.transitionGraph.add_weighted_edges_from([(label, label_t, self.transitionGraph[label]['null']['weight'])])
-                        self.transitionGraph.remove_edge(label, 'null')
-
-                    elif not self.transitionGraph.has_edge(label, label_t):
-                        self.nOptions += 1
-                        self.transitionGraph.add_weighted_edges_from([(label, label_t, self.nOptions)])
-                        self.transitionUpdated = True
+                    if not (self.transitionGraph.has_edge(label, label_t) or self.transitionGraph.has_edge(label_t, label)):
+                        if self.transitionGraph.has_edge(label, 'null'):
+                            self.transitionGraph.add_weighted_edges_from([(label, label_t, self.transitionGraph[label]['null']['weight'])])
+                            self.transitionGraph.remove_edge(label, 'null')
+                        else:
+                            self.nOptions += 1
+                            self.transitionGraph.add_weighted_edges_from([(label, label_t, self.nOptions)])
 
         nodes = list(self.transitionGraph.nodes)
         for i in range(0, len(nodes)):
             if len(list(self.transitionGraph.successors(nodes[i]))) < 1 and nodes[i] != 'null':
                 self.nOptions += 1
                 self.transitionGraph.add_weighted_edges_from([(nodes[i], 'null', self.nOptions)])
-                self.transitionUpdated = True
+
+        if len(list(self.transitionGraph.nodes)) > self.prevModes:
+            self.prevModes = len(list(self.transitionGraph.nodes))
+            self.transitionUpdated = True
 
     def learnModes(self, rollouts):
         '''

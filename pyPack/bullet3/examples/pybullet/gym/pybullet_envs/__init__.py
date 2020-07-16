@@ -46,6 +46,12 @@ register(
 )
 
 register(
+    id='BlockSlide2D-v1',
+    entry_point='pybullet_envs.bullet:BlockSlide2DEnv',
+    max_episode_steps=1000,
+)
+
+register(
     id='Block3D-v1',
     entry_point='pybullet_envs.bullet:Block3DEnv',
     max_episode_steps=1000,

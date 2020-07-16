@@ -315,7 +315,7 @@ def learn(env, model_path, data_path, policy_fn, model_learning_params, svm_grid
         edges = list(model.transitionGraph.edges)
         for i in range(0, len(edges)):
             print(edges[i][0], " -> ", edges[i][1], " : ", model.transitionGraph[edges[i][0]][edges[i][1]]['weight'])
-        # assert(model.nOptions < pi.num_options)
+        print("Options: ", model.nOptions)
 
         lrlocal = (seg["ep_lens"], seg["ep_rets"])  # local values
         listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal)  # list of tuples

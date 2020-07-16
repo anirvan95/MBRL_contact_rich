@@ -28,7 +28,7 @@ class MlpPolicy(object):
             self._init(*args, **kwargs)
             self.scope = tf1.get_variable_scope().name
 
-    def _init(self, ob_space, ac_space, model, hid_size, num_hid_layers, num_options=2, term_prob=0.5, eps=0.01):
+    def _init(self, ob_space, ac_space, model, hid_size, num_hid_layers, num_options=2, term_prob=0.5, eps=0.0005):
         assert isinstance(ob_space, gym.spaces.Box)
         self.state_in = []
         self.state_out = []

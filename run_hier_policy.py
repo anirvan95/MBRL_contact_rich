@@ -26,7 +26,7 @@ svm_grid_params = {
                    "gamma": np.logspace(-10, 10, endpoint=True, num=11, base=2.)},
     'scoring': 'accuracy',
     # 'cv': 5,
-    'n_jobs': 2,
+    'n_jobs': 4,
     'iid': False,
     'cv': 3,
 }
@@ -49,9 +49,9 @@ def train(args, model_path=None, data_path=None):
     U.make_session().__enter__()
 
     def policy_fn(name, ob_space, ac_space, hybrid_model, num_options):
-        return option_critic_model.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space, hid_size=[16, 16, 32],
+        return option_critic_model.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space, hid_size=[32, 32, 32],
                                              model=hybrid_model, num_options=num_options, num_hid_layers=[2, 2, 2],
-                                             term_prob=0.5)
+                                             term_prob=0.5, eps=0.001)
 
     # Create environment
     env = gym.make(args.env)
@@ -85,18 +85,18 @@ def train(args, model_path=None, data_path=None):
 def main():
     import argparse
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--env', help='environment ID', type=str, default='Block3D-v1')
-    parser.add_argument('--modes', help='Maximum modes expected in the environment', default=4, type=int)
-    parser.add_argument('--noptions', help='Maximum options(edges) expected in the environment', default=12, type=int)
+    parser.add_argument('--env', help='environment ID', type=str, default='BlockSlide2D-v1')
+    parser.add_argument('--modes', help='Maximum modes expected in the environment', default=3, type=int)
+    parser.add_argument('--noptions', help='Maximum options(edges) expected in the environment', default=4, type=int)
     parser.add_argument('--seed', help='RNG seed', type=int, default=1)
     parser.add_argument('--horizon', help='Maximum time horizon in each episode', default=150, type=int)
-    parser.add_argument('--rollouts', help='Maximum rollouts sampled in each iterations', default=50, type=int)
+    parser.add_argument('--rollouts', help='Maximum rollouts sampled in each iterations', default=75, type=int)
     parser.add_argument('--clip_param', help='Clipping parameter of PPO', default=0.2, type=float)
     parser.add_argument('--ent_coeff', help='Entropy coefficient of PPO', default=0.01, type=float)
     parser.add_argument('--optim_epochs', help='Maximum number of sub-epochs in optimization in each iteration',
-                        default=40, type=int)
+                        default=50, type=int)
     parser.add_argument('--optim_stepsize', help='Step size of sub-epochs in optimization in each iteration',
-                        default=3e-4, type=float)
+                        default=5e-4, type=float)
     parser.add_argument('--optim_batchsize', help='Maximum number of samples in optimization in each iteration',
                         default=32, type=int)
     parser.add_argument('--gamma', help='Discount factor of GAE', default=0.99, type=float)
@@ -130,21 +130,32 @@ def main():
         time.sleep(1)
         args.num_iteration = 1
         # Load the saved model for demonstration
-        pi = train(args, model_path, data_path)
-        U.load_state(args.model_path)
+        pi, model = train(args, model_path, data_path)
+        U.load_state(model_path+'/')
         env = gym.make(args.env)
         env.setRender(True)
         ob = env.reset()
+        option, active_options_t = pi.get_option(ob)
         time_step = 0
+        model.currentMode = 0
         while True:
-            action = pi.act(stochastic=False, ob=ob)[0]
-            ob, _, done, = env.step(action)
+            ac = pi.act(True, ob, option)
+            ob, rew, new, _ = env.step(ac)
             env.render()
             time_step = time_step + 1
             time.sleep(0.01)
-            if done or time_step > args.horizon:
+            nbeta = pi.get_tpred(ob)
+            tprob = nbeta[option]
+            model.currentMode = model.getNextMode(ob)
+            option, active_options_t = pi.get_option(ob)
+            if tprob >= pi.term_prob:
+                model.currentMode = model.getNextMode(ob)
+                option, active_options_t = pi.get_option(ob)
+
+            if new or time_step > args.horizon:
                 ob = env.reset()
                 time_step = 0
+                option, active_options_t = pi.get_option(ob)
 
 
 if __name__ == '__main__':

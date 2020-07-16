@@ -1,0 +1,91 @@
+<?xml version="1.0"?>
+<robot name="block">
+  	<material name="grey">
+        <color rgba="0.91 0.925 0.945 1"/>
+    </material>
+	<material name="red">
+        <color rgba="1 0.01 0.01 1"/>
+    </material>
+
+    <link name="plane">
+          <origin rpy="0 0 0" xyz="0 0 0.005"/>
+          <visual>
+              <geometry>
+                  <box size="0 0 0.0"/>
+              </geometry>
+              <material name="grey"/>
+          </visual>
+          <collision>
+               <geometry>
+                  <box size="0 0 0.0"/>
+              </geometry>
+          </collision>
+          <inertial>
+              <mass value="0"/>
+              <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
+          </inertial>
+      </link>
+
+      <joint name="slide_x" type="prismatic">
+            <origin xyz="0.0 0.0 0.075"/>
+            <parent link="plane"/>
+            <child link="hinge"/>
+            <dynamics damping="1.0" friction="0.0001"/>
+            <axis xyz="1.0 0.0 0.0"/>
+            <limit effort="1000.0" lower="-15.0" upper="15.0" velocity="7.5"/>
+      </joint>
+
+      <link name="hinge">
+          <origin xyz="0.0 0.0 0.0"/>
+          <visual>
+              <geometry>
+                  <box size="0.0 0.0 0.0"/>
+              </geometry>
+              <material name="cayan"/>
+          </visual>
+          <collision>
+              <geometry>
+                  <box size="0.0 0.0 0.0"/>
+              </geometry>
+          </collision>
+          <inertial>
+              <mass value="0.0"/>
+              <inertia ixx="0.0" ixy="0" ixz="0" iyy="0.0" iyz="0" izz="0.0"/>
+          </inertial>
+      </link>
+
+      <joint name="slide_y" type="prismatic">
+          <origin xyz="0.0 0.0 0.0"/>
+          <parent link="hinge"/>
+          <child link="block"/>
+          <dynamics damping="1.0" friction="0.0001"/>
+          <axis xyz="0.0 1.0 0.0"/>
+          <limit effort="1000.0" lower="-15.0" upper="15.0" velocity="7.5"/>
+      </joint>
+
+      <link name="block">
+          <origin xyz="0.0 0.0 0.0"/>
+          <visual>
+              <geometry>
+                  <box size="0.15 0.15 0.15"/>
+              </geometry>
+              <material name="red"/>
+          </visual>
+          <collision>
+              <geometry>
+                  <box size="0.15 0.15 0.15"/>
+              </geometry>
+              <contact_coefficients>
+                  <mu>0.01</mu>
+                  <kp>0.1</kp>
+                  <kd>0</kd>
+              </contact_coefficients>
+          </collision>
+          <inertial>
+              <mass value="0.5"/>
+              <inertia ixx="0.0033" ixy="0" ixz="0" iyy="0.00333" iyz="0" izz="0.0033"/>
+          </inertial>
+      </link>
+
+
+</robot>

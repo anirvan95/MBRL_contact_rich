@@ -2,7 +2,7 @@ import numpy as np
 from gym import utils
 from gym.envs.mujoco import mujoco_env
 
-GOAL = np.array([0, 0.5])  # change here
+GOAL = np.array([0, 0.52])  # change here
 INIT = np.array([-0.3, 0.8])  # pos1
 # INIT = np.array([0.0, -0.1]) # pos2
 # INIT = np.array([0.5, 0.3]) # pos3

@@ -1,5 +1,5 @@
 """
-3D Block Sliding envirionment
+2D Block Sliding envirionment
 """
 import os, inspect
 
@@ -25,14 +25,14 @@ logger = logging.getLogger(__name__)
 '''
 # Change environment configuration here
 '''
-GOAL = np.array([0.075, 0.075, 0.075])
-INIT = np.array([0.2, 0.5, 0.4])
+GOAL = np.array([0.075, 0.075])
+INIT = np.array([0.4, 0.6])
 
 ACTION_SCALE = 1e-3
 STATE_SCALE = 10
 
 
-class Block3DEnv(gym.Env):
+class BlockSlide2DEnv(gym.Env):
     metadata = {'render.modes': ['human', 'rgb_array'], 'video.frames_per_second': 30}
 
     def __init__(self, render=False):
@@ -40,10 +40,10 @@ class Block3DEnv(gym.Env):
         self._render_height = 200
         self._render_width = 320
         self._physics_client_id = -1
-        actuator_bound_low = np.array([-15, -15, -15])
-        actuator_bound_high = np.array([15, 15, 15])
+        actuator_bound_low = np.array([-15, -15])
+        actuator_bound_high = np.array([15, 15])
         self.action_space = spaces.Box(low=actuator_bound_low, high=actuator_bound_high)
-        observation_dim = 6
+        observation_dim = 4
         state_bound_low = np.full(observation_dim, -float('inf'))
         state_bound_high = np.full(observation_dim, float('inf'))
         self.observation_space = spaces.Box(low=state_bound_low, high=state_bound_high)
@@ -52,12 +52,12 @@ class Block3DEnv(gym.Env):
         self.viewer = None
         self._configure()
 
-    def getGoalDist(self):
-        dist = self.state[0:3] - GOAL
-        return dist
-
     def _configure(self, display=None):
         self.display = display
+
+    def getGoalDist(self):
+        dist = self.state[0:2] - GOAL
+        return dist
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -67,14 +67,12 @@ class Block3DEnv(gym.Env):
         p = self._p
         forceX = action[0]
         forceY = action[1]
-        forceZ = action[2]
         p.setJointMotorControl2(self.block, 0, p.TORQUE_CONTROL, force=forceX)
         p.setJointMotorControl2(self.block, 1, p.TORQUE_CONTROL, force=forceY)
-        p.setJointMotorControl2(self.block, 2, p.TORQUE_CONTROL, force=forceZ)
         p.stepSimulation()
-        self.state = [p.getJointState(self.block, 0)[0], p.getJointState(self.block, 1)[0], p.getJointState(self.block, 2)[0], p.getJointState(self.block, 0)[1], p.getJointState(self.block, 1)[1], p.getJointState(self.block, 2)[1]]
+        self.state = [p.getJointState(self.block, 0)[0], p.getJointState(self.block, 1)[0], p.getJointState(self.block, 0)[1], p.getJointState(self.block, 1)[1]]
         done = False
-        pos = self.state[0:3]
+        pos = self.state[0:2]
         dist = pos - GOAL
         reward_dist = -STATE_SCALE * np.linalg.norm(dist)
         reward_ctrl = -ACTION_SCALE * np.square(action).sum()
@@ -100,28 +98,26 @@ class Block3DEnv(gym.Env):
             self.wall_1 = p.loadURDF(os.path.join(pybullet_data.getDataPath(), "block_slide_w1.urdf"))
             self.wall_2 = p.loadURDF(os.path.join(pybullet_data.getDataPath(), "block_slide_w2.urdf"))
             self.wall_3 = p.loadURDF(os.path.join(pybullet_data.getDataPath(), "block_slide_w3.urdf"))
-            self.block = p.loadURDF(os.path.join(pybullet_data.getDataPath(), "block3D.urdf"))
+            self.block = p.loadURDF(os.path.join(pybullet_data.getDataPath(), "blockSlide2D.urdf"))
             self.timeStep = 0.01
-            p.setGravity(0, 0, 0)
+            p.setGravity(0, 0, -9.8)
             p.setTimeStep(self.timeStep)
             p.setRealTimeSimulation(0)
             p.setJointMotorControl2(self.block, 0, p.VELOCITY_CONTROL, force=0)
             p.setJointMotorControl2(self.block, 1, p.VELOCITY_CONTROL, force=0)
-            p.setJointMotorControl2(self.block, 2, p.VELOCITY_CONTROL, force=0)
 
         p = self._p
         p.resetJointState(self.block, 0, INIT[0], 0)
         p.resetJointState(self.block, 1, INIT[1], 0)
-        p.resetJointState(self.block, 2, INIT[2], 0)
-        self.state = [p.getJointState(self.block, 0)[0], p.getJointState(self.block, 1)[0], p.getJointState(self.block, 2)[0], p.getJointState(self.block, 0)[1], p.getJointState(self.block, 1)[1], p.getJointState(self.block, 2)[1]]
+        self.state = [p.getJointState(self.block, 0)[0], p.getJointState(self.block, 1)[0], p.getJointState(self.block, 0)[1], p.getJointState(self.block, 1)[1]]
 
         return np.array(self.state)
 
     def render(self, mode='human', close=False):
         base_pos = [0, 0, 0]
-        self._cam_dist = 3.0
-        self._cam_pitch = -29.6
-        self._cam_yaw = 136.0
+        self._cam_dist = 2
+        self._cam_pitch = 0.3
+        self._cam_yaw = 0
 
         view_matrix = self._p.computeViewMatrixFromYawPitchRoll(
             cameraTargetPosition=base_pos,
@@ -129,7 +125,7 @@ class Block3DEnv(gym.Env):
             yaw=self._cam_yaw,
             pitch=self._cam_pitch,
             roll=0,
-            upAxisIndex=1)
+            upAxisIndex=2)
         proj_matrix = self._p.computeProjectionMatrixFOV(fov=60,
                                                          aspect=float(self._render_width) /
                                                                 self._render_height,
@@ -152,6 +148,7 @@ class Block3DEnv(gym.Env):
 
     def getContactForce(self):
         contactInfo = self._p.getContactPoints(self.block)
+        #print(contactInfo)
         dirX = np.array([1, 0, 0])
         dirY = np.array([0, 1, 0])
         dirZ = np.array([0, 0, 1])
@@ -172,9 +169,9 @@ class Block3DEnv(gym.Env):
             for i in range(0, len(contactInfo)):
                 normalDir = np.array(contactInfo[i][7])
                 normalForce = float(contactInfo[i][9])
-                nForceX.append(np.multiply(normalDir, dirX)*normalForce)
-                nForceY.append(np.multiply(normalDir, dirY)*normalForce)
-                nForceZ.append(np.multiply(normalDir, dirZ)*normalForce)
+                nForceX.append(np.multiply(normalDir, dirX) * normalForce)
+                nForceY.append(np.multiply(normalDir, dirY) * normalForce)
+                nForceZ.append(np.multiply(normalDir, dirZ) * normalForce)
                 fricDir1 = np.array(contactInfo[i][11])
                 fricForce1 = float(contactInfo[i][10])
                 fricDir2 = np.array(contactInfo[i][13])
@@ -196,4 +193,4 @@ class Block3DEnv(gym.Env):
             cFy = 0.0 if math.isnan(cFy) else cFy
             cFz = 0.0 if math.isnan(cFz) else cFz
 
-        return np.array([nFx, nFy, nFz, cFx, cFy, cFz])
+        return np.array([nFx + cFx, nFy + cFy])
