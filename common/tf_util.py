@@ -6,6 +6,7 @@ import functools
 import collections
 import multiprocessing
 
+
 def switch(condition, then_expression, else_expression):
     """Switches between two operations depending on a scalar value (int or bool).
     Note that both `then_expression` and `else_expression`
@@ -27,6 +28,7 @@ def switch(condition, then_expression, else_expression):
 # Extras
 # ================================================================
 
+
 def lrelu(x, leak=0.2):
     f1 = 0.5 * (1 + leak)
     f2 = 0.5 * (1 - leak)
@@ -35,6 +37,7 @@ def lrelu(x, leak=0.2):
 # ================================================================
 # Mathematical utils
 # ================================================================
+
 
 def huber_loss(x, delta=1.0):
     """Reference: https://en.wikipedia.org/wiki/Huber_loss"""
@@ -73,6 +76,7 @@ def make_session(config=None, num_cpu=None, make_default=False, graph=None):
         return tf1.InteractiveSession(config=config, graph=graph)
     else:
         return tf1.Session(config=config, graph=graph)
+
 
 def single_threaded_session():
     """Returns a session which will only use a single CPU"""

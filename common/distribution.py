@@ -87,6 +87,9 @@ class DiagGaussianPd(Pd):
     def mode(self):
         return self.mean
 
+    def variance(self):
+        return self.std
+
     def neglogp(self, x):
         return 0.5 * tf1.reduce_sum(tf1.square((x - self.mean) / self.std), axis=-1) \
                + 0.5 * np.log(2.0 * np.pi) * tf1.to_float(tf1.shape(x)[-1]) \
@@ -102,6 +105,7 @@ class DiagGaussianPd(Pd):
 
     def sample(self):
         return self.mean + self.std * tf1.random_normal(tf1.shape(self.mean))
+
 
     @classmethod
     def fromflat(cls, flat):

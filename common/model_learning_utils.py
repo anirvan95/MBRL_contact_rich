@@ -7,6 +7,14 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.mixture import BayesianGaussianMixture
 from math import sqrt
 import sys
+from statistics import mode
+
+
+def obtainSegMode(env_id, seg):
+    hybrid_mode = []
+    for t in range(0, len(seg)):
+        hybrid_mode.append(obtainMode(env_id, seg[t, :]))
+    return mode(hybrid_mode)
 
 
 def obtainMode(env_id, point):
@@ -15,29 +23,29 @@ def obtainMode(env_id, point):
         Mode_12 = [-0.15, 0.25, 0.3, 0.75]
         Mode_13 = [-0.05, 0.75, 1.15, 0.8]
         Mode_21 = [-0.08, 0.45, 0.05, 0.55]
-        mode = 0
+        hybrid_mode = 0
         if Mode_11[0] <= point[0] <= Mode_11[2] and Mode_11[1] <= point[1] <= Mode_11[3]:
-            mode = 1
+            hybrid_mode = 1
         if Mode_12[0] <= point[0] <= Mode_12[2] and Mode_12[1] <= point[1] <= Mode_12[3]:
-            mode = 1
+            hybrid_mode = 1
         if Mode_13[0] <= point[0] <= Mode_13[2] and Mode_13[1] <= point[1] <= Mode_13[3]:
-            mode = 1
+            hybrid_mode = 1
         if Mode_21[0] <= point[0] <= Mode_21[2] and Mode_21[1] <= point[1] <= Mode_21[3]:
-            mode = 1
+            hybrid_mode = 1
 
-        return mode
+        return hybrid_mode
 
     elif env_id == 'BlockSlide2D-v1':
         box_size = 0.15
         bound = float(box_size / 2 + 0.001)
         Mode_1 = [0, 1, 0, bound]
         Mode_2 = [0, bound, bound, 1]
-        mode = 0
+        hybrid_mode = 0
         if Mode_1[0] <= point[0] <= Mode_1[1] and Mode_1[2] <= point[1] <= Mode_1[3]:
-            mode = 1
+            hybrid_mode = 1
         elif Mode_2[0] <= point[0] <= Mode_2[1] and Mode_2[2] <= point[1] <= Mode_2[3]:
-            mode = 2
-        return mode
+            hybrid_mode = 2
+        return hybrid_mode
 
     elif env_id == 'Block3D-v1':
         box_size = 0.15
@@ -45,18 +53,18 @@ def obtainMode(env_id, point):
         Mode_1 = [0, 1, 0, 1, 0, bound]
         Mode_2 = [0, 1, 0, bound, bound, 1]
         Mode_3 = [0, bound, bound, 1, bound, 1]
-        mode = 0
+        hybrid_mode = 0
         if Mode_1[0] <= point[0] <= Mode_1[1] and Mode_1[2] <= point[1] <= Mode_1[3] and Mode_1[4] <= point[2] <= \
                 Mode_1[5]:
-            mode = 1
+            hybrid_mode = 1
         elif Mode_2[0] <= point[0] <= Mode_2[1] and Mode_2[2] <= point[1] <= Mode_2[3] and Mode_2[4] <= point[2] <= \
                 Mode_2[5]:
-            mode = 2
+            hybrid_mode = 2
         elif Mode_3[0] <= point[0] <= Mode_3[1] and Mode_3[2] <= point[1] <= Mode_3[3] and Mode_3[4] <= point[2] <= \
                 Mode_3[5]:
-            mode = 3
+            hybrid_mode = 3
 
-        return mode
+        return hybrid_mode
 
 
 class multiDimGaussianProcess(object):
@@ -137,8 +145,8 @@ class SVMPrediction(object):
             self.clf.fit(X, y)
 
     def predict(self, X):
-        mode = self.clf.predict(X)
-        return mode
+        hybrid_mode = self.clf.predict(X)
+        return hybrid_mode
 
     def predict_f(self, X):
         mode_prob = self.clf.predict_proba(X)
@@ -159,8 +167,8 @@ class LRPrediction(object):
         self.logreg.fit(X, y)
 
     def predict(self, X):
-        mode = self.logreg.predict(X)
-        return mode
+        hybrid_mode = self.logreg.predict(X)
+        return hybrid_mode
 
     def predict_f(self, X):
         mode_prob = self.logreg.predict_proba(X)

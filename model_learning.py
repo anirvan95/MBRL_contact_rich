@@ -6,14 +6,13 @@ from sklearn.exceptions import NotFittedError
 
 
 class partialHybridModel(object):
-    def __init__(self, env, model_learning_params, svm_grid_params, svm_params_interest, svm_params_guard, horizon, modes,
-                 options, rollout):
+    def __init__(self, env, model_learning_params, svm_grid_params, svm_params_interest, svm_params_guard, horizon, modes, options, rollout):
         # Define the transition graph with single mode
         self.transitionGraph = nx.DiGraph()
-        self.transitionGraph.add_node('null')
+        self.transitionGraph.add_node('goal')
         self.prevModes = len(list(self.transitionGraph.nodes))
         self.nOptions = 0
-        self.transitionGraph.add_weighted_edges_from([(0, 'null', self.nOptions)])
+        self.transitionGraph.add_weighted_edges_from([(0, 'goal', self.nOptions)])
         self.env_id = env.unwrapped.spec.id
         self.preOptions = options
         self.modeGaussians = []
@@ -41,9 +40,13 @@ class partialHybridModel(object):
     def learnHardTG(self, rollouts):
         train_rollouts = int(self.model_learning_params['per_train'] * self.rolloutSize)
         obs = rollouts['ob']
+        opts = rollouts['opts']
+        desOpts = opts
         self.transitionUpdated = False
         for rollout in range(0, train_rollouts):
             states = obs[rollout * self.horizon:(self.horizon + rollout * self.horizon), :]
+            segStartIndex = rollout * self.horizon
+            segEndIndex = 'null'
             for t in range(0, len(states) - 1):
                 label = obtainMode(self.env_id, states[t, :])
                 label_t = obtainMode(self.env_id, states[t + 1, :])
@@ -51,29 +54,73 @@ class partialHybridModel(object):
                 self.dataset[int(label)].append(dataDict)
 
                 # Creating transition graph
+
+                # Adding mode to GOAL edge e.g. 0 > goal, 1 > goal etc
                 if not self.transitionGraph.has_node(label):
                     self.nOptions += 1
-                    self.transitionGraph.add_weighted_edges_from([(label, 'null', self.nOptions)])
+                    self.transitionGraph.add_weighted_edges_from([(label, 'goal', self.nOptions)])
 
+                if not self.transitionGraph.has_node(label_t):
+                    self.nOptions += 1
+                    self.transitionGraph.add_weighted_edges_from([(label_t, 'goal', self.nOptions)])
+
+                # Transition Detected
                 if label != label_t:
-                    # Transition Detected
-                    if not (self.transitionGraph.has_edge(label, label_t) or self.transitionGraph.has_edge(label_t, label)):
-                        if self.transitionGraph.has_edge(label, 'null'):
-                            self.transitionGraph.add_weighted_edges_from([(label, label_t, self.transitionGraph[label]['null']['weight'])])
-                            self.transitionGraph.remove_edge(label, 'null')
-                        else:
-                            self.nOptions += 1
-                            self.transitionGraph.add_weighted_edges_from([(label, label_t, self.nOptions)])
+                    segEndIndex = segStartIndex + t
+                    if not (self.transitionGraph.has_edge(label, label_t) or self.transitionGraph.has_edge(label_t,
+                                                                                                           label)):
+                        self.nOptions += 1
+                        self.transitionGraph.add_weighted_edges_from([(label, label_t, self.nOptions)])
 
-        nodes = list(self.transitionGraph.nodes)
-        for i in range(0, len(nodes)):
-            if len(list(self.transitionGraph.successors(nodes[i]))) < 1 and nodes[i] != 'null':
-                self.nOptions += 1
-                self.transitionGraph.add_weighted_edges_from([(nodes[i], 'null', self.nOptions)])
+                    # Assign the desired option for transition
+                    if label_t != 0:
+                        desOpts[segStartIndex:segEndIndex] = self.transitionGraph[label][label_t]['weight']
+                    else:
+                        desOpts[segStartIndex:segEndIndex] = self.transitionGraph[label]['goal']['weight']
+
+                    segStartIndex = segEndIndex + 1
+                    segEndIndex = 'null'
+
+            # Assign the desired option in case of no transition
+            if segEndIndex == 'null':
+                desOpts[segStartIndex:segEndIndex] = self.transitionGraph[label]['goal']['weight']
 
         if len(list(self.transitionGraph.nodes)) > self.prevModes:
             self.prevModes = len(list(self.transitionGraph.nodes))
             self.transitionUpdated = True
+
+    def learnPreDefModes(self, rollouts):
+        '''
+        Assigns modes and segments the rollouts according to pre-defined regions
+        :param rollouts: rollouts data from environment
+        '''
+        train_rollouts = int(self.model_learning_params['per_train'])
+        obs = rollouts['ob']
+        segmented_traj = []
+        seg_labels = []
+        for rollout in range(0, train_rollouts):
+            states = obs[rollout * self.horizon:(self.horizon + rollout * self.horizon), :]
+            traj_time = len(states)
+            tp = []
+            for t in range(0, traj_time - 1):
+                label = obtainMode(self.env_id, states[t, :])
+                label_t = obtainMode(self.env_id, states[t + 1, :])
+                dataDict = {'x': states[t, :], 'label': label, 'label_t': label_t}
+                self.dataset[int(label)].append(dataDict)
+                if label != label_t:
+                    tp.append(t)
+            tp.append(0)
+            tp.append(traj_time)
+            tp = np.array(tp)
+            selectedSeg = []
+            for k in range(0, len(tp) - 1):
+                if (tp[k + 1] - tp[k]) > self.model_learning_params['minLength']:
+                    selectedSeg.append(np.array([tp[k], tp[k + 1]]))
+                    seg_labels.append(obtainSegMode(self.env_id, states[tp[k]:tp[k + 1], :]))
+            segmented_traj.append(np.array([rollout, selectedSeg]))
+
+        self.labels = np.array(seg_labels)
+        self.segment_data = np.array(segmented_traj)
 
     def learnModes(self, rollouts):
         '''
@@ -95,7 +142,8 @@ class partialHybridModel(object):
             t = np.expand_dims(np.arange(0, len(position)), axis=1)
             feature_vect = np.hstack((t, position, contactForce))
             tp = identifyTransitions(feature_vect, self.model_learning_params['window_size'],
-                                     self.model_learning_params['weight_prior'], self.model_learning_params['n_components'])
+                                     self.model_learning_params['weight_prior'],
+                                     self.model_learning_params['n_components'])
             fittedModel, segTraj = fitGaussianDistribution(position, contactForce, tp,
                                                            self.model_learning_params['minLength'],
                                                            self.model_learning_params['guassianEps'])
@@ -150,7 +198,7 @@ class partialHybridModel(object):
 
     def learnTranstionRelation(self, rollouts):
         '''
-        Creates transtion relations and datasets for model learning
+        Creates transtion relations and desired mode transition options
         :param rollouts: rollouts data from environment
         '''
         # TODO: Better approach to avoid last segment
@@ -165,7 +213,7 @@ class partialHybridModel(object):
                 # Ignore Noisy segments
                 if self.labels[segCount] >= 0:
                     segStates = states[self.segment_data[rollout][1][segment][0]:(
-                                self.segment_data[rollout][1][segment][1] + 1), :]
+                            self.segment_data[rollout][1][segment][1] + 1), :]
                     segLen = len(segStates)
                     segModes = self.labels[segCount] * np.ones((segLen, 1))
                     for t in range(0, segLen):

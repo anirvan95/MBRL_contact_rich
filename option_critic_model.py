@@ -74,10 +74,15 @@ class MlpPolicy(object):
         self._act = U.function([stochastic, ob, option], [ac])
         self.get_vpred = U.function([ob, option], [self.vpred])
         self._get_op = U.function([ob], [self.op_pi])
+        self.action_pd = U.function([ob, option], [self.pd.mode(), self.pd.variance()])
 
     def act(self, stochastic, ob, option):
         ac1 = self._act(stochastic, ob[None], [option])
         return ac1[0][0]
+
+    def get_ac_dist(self, ob, option):
+        mean, std = self.action_pd(ob[None], [option])
+        return mean[0], std[0]
 
     def get_intfc(self, ob):
         return self.model.getInterest(ob)
