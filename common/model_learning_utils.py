@@ -10,6 +10,14 @@ import sys
 from statistics import mode
 
 
+def compute_likelihood(mean, std, ac):
+    likelihood = (np.exp(-((ac[0] - mean[0]) * (ac[0] - mean[0])) / (2 * std[0] * std[0])) / (
+        np.sqrt(2 * np.pi * std[0] * std[0]))) * (
+                             np.exp(-((ac[1] - mean[1]) * (ac[1] - mean[1])) / (2 * std[1] * std[1])) / (
+                         np.sqrt(2 * np.pi * std[1] * std[1])))
+    return likelihood
+
+
 def obtainSegMode(env_id, seg):
     hybrid_mode = []
     for t in range(0, len(seg)):

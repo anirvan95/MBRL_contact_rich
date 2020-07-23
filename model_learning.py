@@ -94,7 +94,7 @@ class partialHybridModel(object):
         Assigns modes and segments the rollouts according to pre-defined regions
         :param rollouts: rollouts data from environment
         '''
-        train_rollouts = int(self.model_learning_params['per_train'])
+        train_rollouts = int(self.model_learning_params['per_train']) * self.rolloutSize
         obs = rollouts['ob']
         segmented_traj = []
         seg_labels = []
@@ -111,6 +111,7 @@ class partialHybridModel(object):
                     tp.append(t)
             tp.append(0)
             tp.append(traj_time)
+            tp.sort()
             tp = np.array(tp)
             selectedSeg = []
             for k in range(0, len(tp) - 1):
@@ -127,7 +128,7 @@ class partialHybridModel(object):
         Performs clustering and assigns modes for possible segments of data
         :param rollouts: rollouts data from environment
         '''
-        train_rollouts = int(self.model_learning_params['per_train'])
+        train_rollouts = int(self.model_learning_params['per_train']) * self.rolloutSize
         obs = rollouts['ob']
         acs = rollouts['ac']
         cFs = rollouts['contactF']
@@ -155,7 +156,7 @@ class partialHybridModel(object):
             rollout += 1
 
         segmented_traj = np.array(segmented_traj)
-        db = DBSCAN(eps=self.clustering_params['DBeps'], min_samples=self.clustering_params['DBmin_samples'],
+        db = DBSCAN(eps=self.model_learning_params['DBeps'], min_samples=self.model_learning_params['DBmin_samples'],
                     metric=computeDistance)
         labels = db.fit_predict(segment_dynamics)
         nClusters = len(set(labels)) - (1 if -1 in labels else 0)
@@ -179,9 +180,9 @@ class partialHybridModel(object):
                 for i in range(0, len(self.modeGaussians)):
                     distance_vect[i] = computeDistance(self.modeGaussians[i], mergedClusterGaussian)
 
-                if np.amin(distance_vect) > self.clustering_params['gaussDist']:
+                if np.amin(distance_vect) > self.model_learning_params['gaussDist']:
                     # New mode
-                    labels[index[0]] = self.nmodes
+                    labels[index[0]] = self.nModes
                     self.modeGaussians.append(mergedClusterGaussian)
                     self.nModes += 1
                 else:
@@ -190,64 +191,91 @@ class partialHybridModel(object):
                     labels[index[0]] = closestMode
                     self.modeGaussians[closestMode] = mergeGaussians(mergedClusterGaussian,
                                                                      self.modeGaussians[closestMode],
-                                                                     self.clustering_params['weightCurrent'],
-                                                                     self.clustering_params['weightPrevious'])
+                                                                     self.model_learning_params['weightCurrent'],
+                                                                     self.model_learning_params['weightPrevious'])
 
         self.labels = labels
         self.segment_data = segmented_traj
 
-    def learnTranstionRelation(self, rollouts):
+    def learnTranstionRelation(self, rollouts, pi):
         '''
         Creates transtion relations and desired mode transition options
         :param rollouts: rollouts data from environment
         '''
-        # TODO: Better approach to avoid last segment
-        train_rollouts = int(self.clustering_params['per_train']) - 1
+        # TODO: Better approach to avoid last segment, merge segments with same modes
+        train_rollouts = int(self.model_learning_params['per_train']) * self.rolloutSize
+        self.transitionUpdated = False
         obs = rollouts['ob']
+        opts = rollouts['opts']
         acs = rollouts['ac']
-        segCount = 0
-        for rollout in range(0, train_rollouts):
+        obs_trimmed = obs[0:(self.horizon*(self.rolloutSize-1)), :]
+        des_opts = np.zeros(len(obs_trimmed))
+        des_opts_seg = np.zeros(self.labels.shape)
+        imp_samp = np.ones(len(obs_trimmed))
+        seg_count = 0
+        sample_count = 0
+        for rollout in range(0, train_rollouts - 1):
+            opt = opts[rollout * self.horizon:(self.horizon + rollout * self.horizon)]
             states = obs[rollout * self.horizon:(self.horizon + rollout * self.horizon), :]
-            numSegments = self.segment_data[rollout][1].shape[0]
-            for segment in range(0, numSegments):
-                # Ignore Noisy segments
-                if self.labels[segCount] >= 0:
-                    segStates = states[self.segment_data[rollout][1][segment][0]:(
-                            self.segment_data[rollout][1][segment][1] + 1), :]
-                    segLen = len(segStates)
-                    segModes = self.labels[segCount] * np.ones((segLen, 1))
-                    for t in range(0, segLen):
-                        if t < segLen - 1:
-                            dataDict = {'x': segStates[t], 'mode': segModes[t], 'mode_t': segModes[t + 1]}
-                            self.dataset[int(segModes[t])].append(dataDict)
-                        else:  # account for the last state in the segment
-                            dataDict = {'x': segStates[t], 'mode': segModes[t], 'mode_t': segModes[segCount + 1]}
-                            self.dataset[int(segModes[t])].append(dataDict)
-
-                    # Creating transition graph
-                    if self.labels[segCount + 1] >= 0 and segment < numSegments - 1:
-                        if not self.transitionGraph.has_node(self.labels[segCount]):
-                            self.nOptions += 1
-                            self.transitionGraph.add_weighted_edges_from(
-                                [(self.labels[segCount], 'null', self.nOptions)])
-
-                        # Transition detected
-                        if self.labels[segCount] != self.labels[segCount + 1]:
-                            if self.transitionGraph.has_edge(self.labels[segCount], 'null'):
-                                self.transitionGraph.add_weighted_edges_from([(self.labels[segCount],
-                                                                               self.labels[segCount + 1],
-                                                                               self.transitionGraph[
-                                                                                   self.labels[segCount]]['null'][
-                                                                                   'weight'])])
-                                self.transitionGraph.remove_edge(self.labels[segCount], 'null')
-                            elif not self.transitionGraph.has_edge(self.labels[segCount], self.labels[segCount + 1]):
-                                self.nOptions += 1
-                                self.transitionGraph.add_weighted_edges_from(
-                                    [(self.labels[segCount], self.labels[segCount + 1], self.nOptions)])
-
-                    if len(list(self.transitionGraph.successors(self.labels[segCount]))) == 0:
+            action = acs[rollout * self.horizon:(self.horizon + rollout * self.horizon), :]
+            rollout_index = rollout * self.horizon
+            num_segments = len(self.segment_data[rollout][1])
+            for segment in range(0, num_segments):
+                # Avoid Noisy segments
+                if self.labels[seg_count] >= 0:
+                    # Adding mode to GOAL edge e.g. 0 > goal, 1 > goal etc
+                    if not self.transitionGraph.has_edge(self.labels[seg_count], 'goal'):
                         self.nOptions += 1
-                        self.transitionGraph.add_weighted_edges_from([(self.labels[segCount], 'null', self.nOptions)])
+                        self.transitionGraph.add_weighted_edges_from([(self.labels[seg_count], 'goal', self.nOptions)])
+                        #self.transitionUpdated = True
+
+                    if self.labels[seg_count + 1] >= 0:  # Avoid noisy next segment
+                        # Adding mode to GOAL edge e.g. 1 > goal, 1 > goal etc
+                        if not self.transitionGraph.has_edge(self.labels[seg_count + 1], 'goal'):
+                            self.nOptions += 1
+                            self.transitionGraph.add_weighted_edges_from([(self.labels[seg_count + 1], 'goal', self.nOptions)])
+                            #self.transitionUpdated = True
+
+                        # Checking for transition detection while ignoring the last segment
+                        if self.labels[seg_count] != self.labels[seg_count + 1] and segment < num_segments - 1:
+                            if not (self.transitionGraph.has_edge(self.labels[seg_count], self.labels[seg_count + 1])):
+                                self.nOptions += 1
+                                self.transitionGraph.add_weighted_edges_from([(self.labels[seg_count], self.labels[seg_count + 1], self.nOptions)])
+
+
+                            # Assign the desired option for transition
+                            # 0>1
+                            if self.labels[seg_count + 1] > self.labels[seg_count]:
+                                des_opts_seg[seg_count] = self.transitionGraph[self.labels[seg_count]][self.labels[seg_count + 1]]['weight']
+                                des_opts[rollout_index + self.segment_data[rollout][1][segment][0]:rollout_index + self.segment_data[rollout][1][segment][1]] = \
+                                self.transitionGraph[self.labels[seg_count]][self.labels[seg_count + 1]]['weight']
+                            # 1>0 gets assigned to 1>goal
+                            else:
+                                des_opts_seg[seg_count] = self.transitionGraph[self.labels[seg_count]]['goal']['weight']
+                                des_opts[rollout_index + self.segment_data[rollout][1][segment][0]:rollout_index + self.segment_data[rollout][1][segment][1]] = \
+                                self.transitionGraph[self.labels[seg_count]]['goal']['weight']
+
+                        # Assigning desired option for last segment or only one segment
+                        else:
+                            des_opts_seg[seg_count] = self.transitionGraph[self.labels[seg_count]]['goal']['weight']
+                            des_opts[rollout_index + self.segment_data[rollout][1][segment][0]:rollout_index + self.segment_data[rollout][1][segment][1]] = \
+                            self.transitionGraph[self.labels[seg_count]]['goal']['weight']
+
+                    segStates = states[self.segment_data[rollout][1][segment][0]:(self.segment_data[rollout][1][segment][1] + 1), :]
+                    segAction = action[self.segment_data[rollout][1][segment][0]:(self.segment_data[rollout][1][segment][1] + 1), :]
+                    segOpts = opt[self.segment_data[rollout][1][segment][0]:(self.segment_data[rollout][1][segment][1] + 1)]
+                    is_ratio = 1
+                    for t in range(0, len(segStates)):
+                        desired_mean, desired_std = pi.get_ac_dist(segStates[t, :], des_opts_seg[seg_count])
+                        actual_mean, actual_std = pi.get_ac_dist(segStates[t, :], segOpts[t])
+                        is_ratio = is_ratio * compute_likelihood(desired_mean, desired_std, segAction[t, :]) / compute_likelihood(actual_mean, actual_std, segAction[t, :])
+                        imp_samp[sample_count] = is_ratio
+                        sample_count += 1
+
+                seg_count += 1
+        print("sample count :", sample_count)
+        rollouts['is'] = imp_samp
+        rollouts['des_opts'] = des_opts
 
     def learnGuardF(self):
         x = []
@@ -285,13 +313,14 @@ class partialHybridModel(object):
                 self.modeFunction.train(X, Y, False)
 
     def getInterest(self, ob):
-        # predMode = self.modeFunction.predict([ob])
-        mode = self.currentMode
+        mode = self.modeFunction.predict([ob])[0]
+        # mode = self.currentMode
         self.intFunction = np.zeros(self.preOptions)
         nextModes = list(self.transitionGraph.successors(mode))
         for i in range(0, len(nextModes)):
-            option = self.transitionGraph[mode][nextModes[i]]['weight']
-            self.intFunction[option] = 1
+            if nextModes[i] == 'goal' or nextModes[i] > mode:
+                option = self.transitionGraph[mode][nextModes[i]]['weight']
+                self.intFunction[option] = 1
 
         return self.intFunction
 
@@ -309,15 +338,16 @@ class partialHybridModel(object):
         return self.intFunction
 
     def getTermination(self, ob):
-        mode = self.currentMode
+        mode = self.modeFunction.predict([ob])[0]
         self.termFunction = np.ones(self.preOptions)
-        local_group = list(self.transitionGraph.successors(mode)) + list(
-            self.transitionGraph.predecessors(mode)) + list([mode])
-        if 'null' in local_group:
-            local_group.remove('null')
+        local_group = list(self.transitionGraph.successors(mode)) + list(self.transitionGraph.predecessors(mode)) + list([mode])
+        if 'goal' in local_group:
+            local_group.remove('goal')
         local_group.sort()
+        # remove duplicate elements
+        local_group = np.unique(np.array(local_group))
         complete_graph = list(self.transitionGraph.nodes)
-        complete_graph.remove('null')
+        complete_graph.remove('goal')
         complete_graph.sort()
 
         if len(list(self.transitionGraph.nodes)) > 2:
@@ -327,16 +357,16 @@ class partialHybridModel(object):
             for i in range(0, len(local_group)):
                 mode_index = complete_graph.index(local_group[i])
                 sum_prob += next_modes_prob[mode_index]
-
             norm_nmode_prob = next_modes_prob[complete_graph.index(mode)] / sum_prob
             term_prob = 1 - norm_nmode_prob
             nextModes = list(self.transitionGraph.successors(mode))
             for i in range(0, len(nextModes)):
-                optionInd = self.transitionGraph[mode][nextModes[i]]['weight']
-                self.termFunction[optionInd] = term_prob
+                if nextModes[i] == 'goal' or nextModes[i] > mode:
+                    optionInd = self.transitionGraph[mode][nextModes[i]]['weight']
+                    self.termFunction[optionInd] = term_prob
         else:
             # Only one mode discovered, should not have any termination
-            optionInd = self.transitionGraph[mode]['null']['weight']
+            optionInd = self.transitionGraph[mode]['goal']['weight']
             self.termFunction[optionInd] = 0
 
         return self.termFunction

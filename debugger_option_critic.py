@@ -13,9 +13,6 @@ from common.model_learning_utils import *
 
 tf1.disable_v2_behavior()
 
-wb = Workbook()
-sheet = wb.add_sheet('Sheet 1')
-
 model_learning_params = {
     'per_train': 1,  # percentage of total rollouts to be trained
     'window_size': 2,  # window size of transition point clustering
@@ -41,12 +38,16 @@ svm_params_interest = {
     'decision_function_shape': 'ovr',
     'tol': 1e-06,
     'probability': True,
+    'C': 1024,
+    'gamma': 16.0
 }
 svm_params_guard = {
     'kernel': 'rbf',
     'decision_function_shape': 'ovr',
     'tol': 1e-06,
     'probability': True,
+    'C': 1024,
+    'gamma': 4.0
 }
 
 
@@ -170,12 +171,66 @@ def policy_fn(name, ob_space, ac_space, hybrid_model, num_options):
                                          model=hybrid_model, num_options=num_options, num_hid_layers=[2, 2, 2],
                                          term_prob=0.5, eps=0.001)
 
+
 def compute_likelihood(mean, std, ac):
     likelihood = (np.exp(-((ac[0] - mean[0]) * (ac[0] - mean[0])) / (2 * std[0] * std[0])) / (
         np.sqrt(2 * np.pi * std[0] * std[0]))) * (
                              np.exp(-((ac[1] - mean[1]) * (ac[1] - mean[1])) / (2 * std[1] * std[1])) / (
                          np.sqrt(2 * np.pi * std[1] * std[1])))
     return likelihood
+
+
+def add_vtarg_and_adv(rollouts, gamma, lam, num_options):
+    """
+        Compute advantage and other value functions using GAE
+    """
+    obs = rollouts['ob']
+    opts = rollouts['opts']
+    obs_trimmed = obs[0:(horizon * (rolloutSize - 1)), :]
+    des_opts = rollouts['des_opts']
+    des_opts = des_opts.astype(int)
+
+    betas = []
+    vpreds = []
+    op_vpreds = []
+    u_sws = []
+
+    for sample in range(0, len(obs_trimmed)):
+        beta, vpred, op_vpred = pi.get_preds(obs_trimmed[sample, :])
+        vpred = np.squeeze(vpred)
+        u_sw = (1 - beta) * vpred + beta * op_vpred
+        betas.append(beta)
+        vpreds.append(vpred)
+        op_vpreds.append(op_vpred)
+        u_sws.append(u_sw)
+
+    u_sws = np.array(u_sws)
+
+    new = rollouts["new"]
+    new_trimmed = new[0:(horizon * (rolloutSize - 1))]
+    T = len(new_trimmed)
+    new_trimmed = np.append(new_trimmed, 1)
+    rew = rollouts["rew"]
+    rew_trimmed = rew[0:(horizon * (rolloutSize - 1))]
+
+    gaelam = np.empty((num_options, T), 'float32')
+    for des_opt in range(num_options):
+        vpred_opt = u_sws[:, des_opt]
+        lastgaelam = 0
+        for t in reversed(range(T)):
+            nonterminal = 1 - new_trimmed[t + 1]
+            if t == T - 1:
+                delta = rew_trimmed[t]
+            else:
+                delta = rew_trimmed[t] + gamma * vpred_opt[t + 1] * nonterminal - vpred_opt[t]
+
+            gaelam[des_opt, t] = lastgaelam = delta + gamma * lam * nonterminal * lastgaelam
+
+        rollouts["adv"] = gaelam.T[range(len(des_opts)), des_opts]
+        rollouts["tdlamret"] = rollouts["adv"] + u_sws[range(len(des_opts)), des_opts]
+        rollouts["is_adv"] = np.dot(rollouts["adv"], rollouts['is'])
+
+
 
 f = open("results/MOAC/exp_5/data/rollout_data.pkl", "rb")
 p = pickle.load(f)
@@ -201,7 +256,6 @@ model = partialHybridModel(env, model_learning_params, svm_grid_params, svm_para
 pi = policy_fn("pi", ob_space, ac_space, model, num_options)  # Construct network for new policy
 policy_path = "results/MOAC/exp_5/model/"
 
-
 U.initialize()
 
 # Load trained model
@@ -209,116 +263,20 @@ U.initialize()
 
 stime = time.time()
 epochNum = 35
-# Importance Sampling test
 data = p[epochNum]
 rollouts = data['seg']
-env_id = env.unwrapped.spec.id
-train_rollouts = int(model_learning_params['per_train']) * rolloutSize
-obs = rollouts['ob']
-opts = rollouts['opts']
-acs = rollouts['ac']
-desOpts = opts
-segmented_traj = []
-seg_labels = []
-for rollout in range(0, train_rollouts):
-    states = obs[rollout * horizon:(horizon + rollout * horizon), :]
-    traj_time = len(states)
-    tp = []
-    for t in range(0, traj_time - 1):
-        label = obtainMode(env_id, states[t, :])
-        label_t = obtainMode(env_id, states[t + 1, :])
-        dataDict = {'x': states[t, :], 'label': label, 'label_t': label_t}
-        model.dataset[int(label)].append(dataDict)
-        if label != label_t:
-            tp.append(t)
-    tp.append(0)
-    tp.append(traj_time)
-    tp.sort()
-    tp = np.array(tp)
-    selectedSeg = []
-    for k in range(0, len(tp) - 1):
-        if (tp[k + 1] - tp[k]) > model_learning_params['minLength']:
-            selectedSeg.append(np.array([tp[k], tp[k + 1]]))
-            seg_labels.append(obtainSegMode(env_id, states[tp[k]:tp[k + 1], :]))
-    segmented_traj.append(np.array([rollout, selectedSeg]))
+model.learnPreDefModes(rollouts)
+model.learnTranstionRelation(rollouts, pi)
+model.learnGuardF()
+model.learnModeF()
 
-labels = np.array(seg_labels)
-segment_data = np.array(segmented_traj)
-# print(labels)
-# print(segment_data)
-desOptionsLabels = np.zeros(labels.shape)
-segCount = 0
-IS = []
-for rollout in range(0, train_rollouts-1):
-    #print("Rollout: ", rollout)
-    opt = opts[rollout * horizon:(horizon + rollout * horizon)]
-    states = obs[rollout * horizon:(horizon + rollout * horizon), :]
-    action = acs[rollout * horizon:(horizon + rollout * horizon), :]
-    rolloutIndex = rollout * horizon
-    numSegments = len(segment_data[rollout][1])
-    for segment in range(0, numSegments):
-        #print("Segment Num: ", segment)
-        # Avoid Noisy segments
-        if labels[segCount] >= 0:
-            # Adding mode to GOAL edge e.g. 0 > goal, 1 > goal etc
-            if not model.transitionGraph.has_edge(labels[segCount], 'goal'):
-                model.nOptions += 1
-                model.transitionGraph.add_weighted_edges_from([(labels[segCount], 'goal', model.nOptions)])
 
-            if labels[segCount + 1] >= 0:  # Avoid noisy next segment
-                # Adding mode to GOAL edge e.g. 1 > goal, 1 > goal etc
-                if not model.transitionGraph.has_edge(labels[segCount + 1], 'goal'):
-                    model.nOptions += 1
-                    model.transitionGraph.add_weighted_edges_from([(labels[segCount + 1], 'goal', model.nOptions)])
+# compute advantage returns
+gamma = 0.99
+lam = 0.95
 
-                # Checking for transition detection while ignoring the last segment
-                if labels[segCount] != labels[segCount + 1] and segment < numSegments - 1:
-                    if not (model.transitionGraph.has_edge(labels[segCount], labels[segCount + 1])):
-                        model.nOptions += 1
-                        model.transitionGraph.add_weighted_edges_from([(labels[segCount], labels[segCount + 1], model.nOptions)])
+add_vtarg_and_adv(rollouts, gamma, lam, num_options)
 
-                    #print(list(model.transitionGraph.edges))
-                    # Assign the desired option for transition
-                    # 0>1
-                    if labels[segCount + 1] > labels[segCount]:
-                        desOptionsLabels[segCount] = model.transitionGraph[labels[segCount]][labels[segCount + 1]]['weight']
-                        desOpts[rolloutIndex + segment_data[rollout][1][segment][0]:rolloutIndex + segment_data[rollout][1][segment][1]] = model.transitionGraph[labels[segCount]][labels[segCount + 1]]['weight']
-                    # 1>0 gets assigned to 1>goal
-                    else:
-                        desOptionsLabels[segCount] = model.transitionGraph[labels[segCount]]['goal']['weight']
-                        desOpts[rolloutIndex + segment_data[rollout][1][segment][0]:rolloutIndex + segment_data[rollout][1][segment][1]] = model.transitionGraph[labels[segCount]]['goal']['weight']
-
-                # Assigning desired option for last segment or only one segment
-                else:
-                    desOptionsLabels[segCount] = model.transitionGraph[labels[segCount]]['goal']['weight']
-                    desOpts[rolloutIndex + segment_data[rollout][1][segment][0]:rolloutIndex + segment_data[rollout][1][segment][1]] = model.transitionGraph[labels[segCount]]['goal']['weight']
-
-            segStates = states[segment_data[rollout][1][segment][0]:(segment_data[rollout][1][segment][1] + 1), :]
-            segAction = action[segment_data[rollout][1][segment][0]:(segment_data[rollout][1][segment][1] + 1), :]
-            is_ratio = 1
-            for t in range(0, len(segStates)):
-                desired_mean, desired_std = pi.get_ac_dist(segStates[t, :], desOptionsLabels[segCount])
-                actual_mean, actual_std = pi.get_ac_dist(segStates[t, :], 0)
-                is_ratio = is_ratio*compute_likelihood(desired_mean, desired_std, segAction[t, :])/compute_likelihood(actual_mean, actual_std, segAction[t, :])
-                IS.append(is_ratio)
-        xl_sheet_string = 'seg : ' + str(segment_data[rollout][1][segment]) + ', l :' + str(labels[segCount]) + ', do :' + str(desOptionsLabels[segCount])
-        sheet.write(rollout, segment, xl_sheet_string)
-        segCount += 1
-
-sheet2 = wb.add_sheet('Sheet 2')
-print(IS)
-for i in range(0, len(IS)):
-    sheet2.write(i, 0, str(obs[i, 0]))
-    sheet2.write(i, 1, str(desOpts[i]))
-    sheet2.write(i, 2, str(opts[i]))
-    sheet2.write(i, 3, str(IS[i]))
-
-edges = list(model.transitionGraph.edges)
-for i in range(0, len(edges)):
-    print(edges[i][0], " -> ", edges[i][1], " : ", model.transitionGraph[edges[i][0]][edges[i][1]]['weight'])
-print("Options: ", model.nOptions)
-
-wb.save('desired_option_check.xls')
-
-print("Collection time: ", time.time() - stime)
+print("Done in : ", time.time() - stime)
+print("Done baby")
 
