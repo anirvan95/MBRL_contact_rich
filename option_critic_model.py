@@ -91,6 +91,7 @@ class MlpPolicy(object):
         return self.model.getTermination(ob)
 
     def get_preds(self, ob):
+        sampling = False
         beta = self.get_tpred(ob)
         int_func = self.get_intfc(ob)
         # Get Q(s,w)
@@ -102,29 +103,6 @@ class MlpPolicy(object):
         op_vpred = np.sum((int_func * vpred), axis=1)
 
         return beta, vpred, op_vpred
-
-    def get_preds_adv(self, ob):
-        # Get B(s,w)
-        '''
-        beta = []
-        for opt in range(self.num_options):
-            beta.append(self.get_tpred(ob, opt))
-        beta = np.array(beta).T
-        '''
-        beta = self.get_tpred(ob)
-        # Get V(s,w)
-        vpred = []
-        for opt in range(self.num_options):
-            vpred.append(self.get_vpred(ob, [opt])[0])
-        vpred = np.array(vpred).T
-        # Get V(w)
-        op_prob = self._get_op(ob)
-        int_func = self.get_intfc(ob)
-        op_prob = op_prob[0]
-        pi_I = op_prob * int_func / np.sum(op_prob * int_func, axis=1)[:, None]
-        op_vpred = np.sum((pi_I * vpred), axis=1)  # Get V(s)
-
-        return beta, vpred, op_vpred, op_prob, int_func
 
     def get_option(self, ob):
         int_func = self.get_intfc(ob)
@@ -147,29 +125,6 @@ class MlpPolicy(object):
             option = random.choice(available_options)
 
         return option, activated_options
-
-    def get_option_adv(self, ob):
-
-        op_prob = self._get_op([ob])
-        int_func = self.get_intfc(ob)
-
-        activated_options = []
-        # Include option if the interest is high but option policy does not select it
-        for int_val in int_func[0]:
-            if int_val >= 0.5:
-                activated_options.append(1.)
-            else:
-                activated_options.append(0.)
-        indices = (-int_func[0]).argsort()[:2]
-        if 1. not in activated_options:
-            for i in indices:
-                activated_options[i] = 1.
-        try:
-            pi_I = op_prob[0] * (activated_options * int_func) / np.sum(op_prob[0] * (activated_options * int_func), axis=1)
-        except ValueError:
-            print("Value error in option selection")
-
-        return np.random.choice(range(len(op_prob[0][0])), p=pi_I[0]), activated_options
 
     def get_variables(self):
         return tf1.get_collection(tf1.GraphKeys.GLOBAL_VARIABLES, self.scope)

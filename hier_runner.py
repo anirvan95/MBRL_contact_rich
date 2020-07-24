@@ -14,8 +14,7 @@ from model_learning import partialHybridModel
 tf1.disable_v2_behavior()
 
 
-# collect trajectory
-def sample_trajectory(pi, model, env, horizon=150, rollouts=50, render=False):
+def sample_trajectory(pi, model, env, horizon=150, rolloutSize=50, render=False):
     """
             Generates rollouts for policy optimization
     """
@@ -31,7 +30,7 @@ def sample_trajectory(pi, model, env, horizon=150, rollouts=50, render=False):
     cur_ep_len = 0  # len of current episode
     ep_rets = []  # returns of completed episodes in this segment
     ep_lens = []  # lengths of ...
-    batch_size = int(horizon * rollouts)
+    batch_size = int(horizon * rolloutSize)
     # Initialise history of arrays
     obs = np.array([ob for _ in range(batch_size)])
     rews = np.zeros(batch_size, 'float32')
@@ -39,16 +38,10 @@ def sample_trajectory(pi, model, env, horizon=150, rollouts=50, render=False):
     opts = np.zeros(batch_size, 'int32')
     activated_options = np.zeros((batch_size, num_options), 'float32')
 
-    last_options = np.zeros(batch_size, 'int32')
     acs = np.array([ac for _ in range(batch_size)])
-    prev_acs = acs.copy()
     model.currentMode = 0
     option, active_options_t = pi.get_option(ob)
     last_option = option
-
-    betas = []
-    vpreds = []
-    op_vpreds = []
 
     opt_duration = [[] for _ in range(num_options)]
     sample_index = 0
@@ -57,19 +50,11 @@ def sample_trajectory(pi, model, env, horizon=150, rollouts=50, render=False):
     success = 0
     successFlag = False
     while sample_index < batch_size:
-        prevac = ac
         ac = pi.act(True, ob, option)
         obs[sample_index] = ob
-        last_options[sample_index] = last_option
         news[sample_index] = new
         opts[sample_index] = option
         acs[sample_index] = ac
-        prev_acs[sample_index] = prevac
-        beta, vpred, op_vpred = pi.get_preds(ob)
-
-        betas.append(beta)
-        vpreds.append(vpred * (1 - new))
-        op_vpreds.append(op_vpred)
         activated_options[sample_index] = active_options_t
 
         # Step in the environment
@@ -83,11 +68,11 @@ def sample_trajectory(pi, model, env, horizon=150, rollouts=50, render=False):
 
         if render:
             env.render()
-        # termination =
+
+        # Check for termination
         if tprob >= pi.term_prob:
             opt_duration[option].append(curr_opt_duration)
             curr_opt_duration = 0.
-            last_option = option
             model.currentMode = model.getNextMode(ob)
             option, active_options_t = pi.get_option(ob)
 
@@ -112,54 +97,69 @@ def sample_trajectory(pi, model, env, horizon=150, rollouts=50, render=False):
             cur_ep_len = 0
             ob = env.reset()
             option, active_options_t = pi.get_option(ob)
-            last_option = option
             successFlag = False
             new = True
 
     env.close()
-    betas = np.array(betas)
-    vpreds = np.array(vpreds).reshape(batch_size, num_options)
-    op_vpreds = np.squeeze(np.array(op_vpreds))
-    last_betas = betas[range(len(last_options)), last_options]
+
     print("\n Maximum Reward this iteration: ", max(ep_rets), " \n")
-    seg = {"ob": obs, "rew": rews, "vpred": np.array(vpreds), "op_vpred": np.array(op_vpreds), "new": news,
-           "ac": acs, "opts": opts, "prevac": prev_acs, "nextvpred": vpred * (1 - new),
-           "nextop_vpred": op_vpred * (1 - new), "ep_rets": ep_rets, "ep_lens": ep_lens, 'term_p': betas,
-           'next_term_p': beta, "last_betas": last_betas,
-           "opt_dur": opt_duration, "activated_options": activated_options, "success": success}
+    rollouts = {"ob": obs, "rew": rews, "new": news, "ac": acs, "opts": opts, "ep_rets": ep_rets, "ep_lens": ep_lens, "opt_dur": opt_duration, "activated_options": activated_options, "success": success}
 
-    return seg
+    return rollouts
 
 
-def add_vtarg_and_adv(seg, gamma, lam, num_options):
+def add_vtarg_and_adv(rollouts, pi, gamma, lam, num_options):
     """
         Compute advantage and other value functions using GAE
     """
-    op_vpred = np.append(seg["op_vpred"], seg["nextop_vpred"])
-    term_p = np.vstack((np.array(seg["term_p"]), np.array(seg["next_term_p"])))
-    q_sw = np.vstack((seg["vpred"], seg["nextvpred"]))
-    # Utility function in option framework
-    u_sw = (1 - term_p) * q_sw + term_p * np.tile(op_vpred[:, None], num_options)
+    obs = rollouts['seg_obs']
+    opts = rollouts['seg_opts']
+    des_opts = rollouts['des_opts']
+    des_opts = des_opts.astype(int)
 
-    opts = seg["opts"]
-    new = np.append(seg["new"], True)
-    T = len(seg["rew"])
-    rew = seg["rew"]
+    betas = []
+    vpreds = []
+    op_vpreds = []
+    u_sws = []
+
+    for sample in range(0, len(obs)):
+        beta, vpred, op_vpred = pi.get_preds(obs[sample, :])
+        vpred = np.squeeze(vpred)
+        u_sw = (1 - beta) * vpred + beta * op_vpred
+        betas.append(beta)
+        vpreds.append(vpred)
+        op_vpreds.append(op_vpred)
+        u_sws.append(u_sw)
+
+    u_sws = np.array(u_sws)
+
+    new = np.append(rollouts["seg_news"], True)
+    T = len(rollouts["seg_rews"])
+    rew = rollouts["seg_rews"]
+
     gaelam = np.empty((num_options, T), 'float32')
-    for opt in range(num_options):
-        vpred = u_sw[:, opt]
+    for des_opt in range(num_options):
+        vpred_opt = u_sws[:, des_opt]
         lastgaelam = 0
         for t in reversed(range(T)):
             nonterminal = 1 - new[t + 1]
-            delta = rew[t] + gamma * vpred[t + 1] * nonterminal - vpred[t]
-            gaelam[opt, t] = lastgaelam = delta + gamma * lam * nonterminal * lastgaelam
+            if t == T - 1:
+                delta = rew[t]
+            else:
+                delta = rew[t] + gamma * vpred_opt[t + 1] * nonterminal - vpred_opt[t]
 
-    seg["adv"] = gaelam.T[range(len(opts)), opts]
-    seg["tdlamret"] = seg["adv"] + u_sw[range(len(opts)), opts]
+            gaelam[des_opt, t] = lastgaelam = delta + gamma * lam * nonterminal * lastgaelam
+
+    rollouts["adv"] = gaelam.T[range(len(des_opts)), des_opts]
+    rollouts["tdlamret"] = rollouts["adv"] + u_sws[range(len(des_opts)), des_opts]
+    rollouts["is_adv"] = rollouts["adv"] * rollouts['is']
+    rollouts["betas"] = np.array(betas)
+    rollouts["vpreds"] = np.array(vpreds)
+    rollouts["op_vpred"] = np.array(op_vpreds)
 
 
 def learn(env, model_path, data_path, policy_fn, model_learning_params, svm_grid_params, svm_params_interest,
-          svm_params_guard, *, modes, rollouts, num_options=2,
+          svm_params_guard, *, modes, rolloutSize, num_options=2,
           horizon,  # timesteps per actor per update
           clip_param, ent_coeff=0.02,  # clipping parameter epsilon, entropy coeff
           optim_epochs=10, optim_stepsize=3e-4, optim_batchsize=160,  # optimization hypers
@@ -170,14 +170,13 @@ def learn(env, model_path, data_path, policy_fn, model_learning_params, svm_grid
           retrain=False
           ):
     """
-            Core learning function
+        Core learning function
     """
 
     ob_space = env.observation_space
     ac_space = env.action_space
 
-    model = partialHybridModel(env, model_learning_params, svm_grid_params, svm_params_interest, svm_params_guard,
-                               horizon, modes, num_options, rollouts)
+    model = partialHybridModel(env, model_learning_params, svm_grid_params, svm_params_interest, svm_params_guard, horizon, modes, num_options, rolloutSize)
     pi = policy_fn("pi", ob_space, ac_space, model, num_options)  # Construct network for new policy
     oldpi = policy_fn("oldpi", ob_space, ac_space, model, num_options)  # Network for old policy
     atarg = tf1.placeholder(dtype=tf1.float32, shape=[None])  # Target advantage function (if applicable)
@@ -190,8 +189,6 @@ def learn(env, model_path, data_path, policy_fn, model_learning_params, svm_grid
     # Define placeholders for computing the advantage
     ob = U.get_placeholder_cached(name="ob")
     option = U.get_placeholder_cached(name="option")
-    betas = tf1.placeholder(dtype=tf1.float32, shape=[None])  # Empirical return
-
     ac = pi.pdtype.sample_placeholder([None])
 
     # Defining losses for optimization
@@ -238,7 +235,8 @@ def learn(env, model_path, data_path, policy_fn, model_learning_params, svm_grid
         time.sleep(2)
         U.load_state(model_path)
         # model = pickle.load()
-    max_timesteps = int(horizon * rollouts * max_iters)
+
+    max_timesteps = int(horizon * rolloutSize * max_iters)
 
     while True:
         if max_iters and iters_so_far >= max_iters:
@@ -250,45 +248,40 @@ def learn(env, model_path, data_path, policy_fn, model_learning_params, svm_grid
         else:
             raise NotImplementedError
 
-        logger.log("********** Iteration %i ************" % iters_so_far)
+        logger.log("************* Iteration %i *************" % iters_so_far)
         print("Collecting samples for policy optimization !! ")
         render = False
-        seg = sample_trajectory(pi, model, env, horizon=horizon, rollouts=rollouts, render=render)
-        data = {'seg': seg}
-        p.append(data)
-        del data
-        data_file_name = data_path + '/rollout_data.pkl'
-        pickle.dump(p, open(data_file_name, "wb"))
+        rollouts = sample_trajectory(pi, model, env, horizon=horizon, rolloutSize=rolloutSize, render=render)
+
+        # Model update
+        print("Updating model !!\n")
+        model.updateModel(rollouts, pi)
+        print("Model graph:", model.transitionGraph.nodes)
+        print("Model options:", model.transitionGraph.edges)
+        edges = list(model.transitionGraph.edges)
+        for i in range(0, len(edges)):
+            print(edges[i][0], " -> ", edges[i][1], " : ", model.transitionGraph[edges[i][0]][edges[i][1]]['weight'])
 
         datas = [0 for _ in range(num_options)]
-        add_vtarg_and_adv(seg, gamma, lam, num_options)
+        add_vtarg_and_adv(rollouts, pi, gamma, lam, num_options)
 
-        opt_d = []
-        for i in range(num_options):
-            dur = np.mean(seg['opt_dur'][i]) if len(seg['opt_dur'][i]) > 0 else 0.
-            opt_d.append(dur)
+        ob, ac, opts, atarg, tdlamret = rollouts["seg_obs"], rollouts["seg_acs"], rollouts["des_opts"], rollouts["is_adv"], rollouts["tdlamret"]
 
-        ob, ac, opts, atarg, tdlamret = seg["ob"], seg["ac"], seg["opts"], seg["adv"], seg["tdlamret"]
-
-        vpredbefore = seg["vpred"]  # predicted value function before udpate
+        vpredbefore = rollouts["vpreds"]  # predicted value function before udpate
         atarg = (atarg - atarg.mean()) / atarg.std()  # standardized advantage function estimate
         if hasattr(pi, "ob_rms"):
             pi.ob_rms.update(ob)  # update running mean/std for policy
         assign_old_eq_new()
 
         # Optimizing the policy
-
+        print("\nOptimizing policy !! \n")
         for opt in range(num_options):
             indices = np.where(opts == opt)[0]
-            print("Option: ", opt)
-            print("Batch Size:", indices.size)
-            opt_d[opt] = indices.size
+            print("Option- ", opt, " Batch Size: ", indices.size)
             if not indices.size:
                 continue
 
-            datas[opt] = d = Dataset(
-                dict(ob=ob[indices], ac=ac[indices], atarg=atarg[indices], vtarg=tdlamret[indices]),
-                shuffle=not pi.recurrent)
+            datas[opt] = d = Dataset(dict(ob=ob[indices], ac=ac[indices], atarg=atarg[indices], vtarg=tdlamret[indices]), shuffle=not pi.recurrent)
 
             if indices.size < optim_batchsize:
                 print("Too few samples for opt - ", opt)
@@ -302,27 +295,16 @@ def learn(env, model_path, data_path, policy_fn, model_learning_params, svm_grid
             for _ in range(optim_epochs_corrected):
                 losses = []  # list of tuples, each of which gives the loss for a minibatch
                 for batch in d.iterate_once(optim_batchsize_corrected):
-                    *newlosses, grads = lossandgrad(batch["ob"], batch["ac"], batch["atarg"], batch["vtarg"],
-                                                    cur_lrmult, [opt])
+                    *newlosses, grads = lossandgrad(batch["ob"], batch["ac"], batch["atarg"], batch["vtarg"], cur_lrmult, [opt])
                     adam.update(grads, optim_stepsize * cur_lrmult)
                     losses.append(newlosses)
 
-        # Model update
-        print("Updating model ")
-        model.updateModel(seg)
-        print("Model graph:", model.transitionGraph.nodes)
-        print("Model options:", model.transitionGraph.edges)
-        edges = list(model.transitionGraph.edges)
-        for i in range(0, len(edges)):
-            print(edges[i][0], " -> ", edges[i][1], " : ", model.transitionGraph[edges[i][0]][edges[i][1]]['weight'])
-        print("Options: ", model.nOptions)
-
-        lrlocal = (seg["ep_lens"], seg["ep_rets"])  # local values
+        lrlocal = (rollouts["ep_lens"], rollouts["ep_rets"])  # local values
         listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal)  # list of tuples
         lens, rews = map(flatten_lists, zip(*listoflrpairs))
         lenbuffer.extend(lens)
         rewbuffer.extend(rews)
-        logger.record_tabular("Success", seg["success"])
+        logger.record_tabular("Success", rollouts["success"])
         logger.record_tabular("EpLenMean", np.mean(lenbuffer))
         logger.record_tabular("EpRewMean", np.mean(rewbuffer))
         logger.record_tabular("EpThisIter", len(lens))
@@ -334,5 +316,13 @@ def learn(env, model_path, data_path, policy_fn, model_learning_params, svm_grid
         logger.record_tabular("TimeElapsed", time.time() - tstart)
         if MPI.COMM_WORLD.Get_rank() == 0:
             logger.dump_tabular()
+
+        # Save rollouts
+        print("Saving rollouts !! ")
+        data = {'rollouts': rollouts}
+        p.append(data)
+        del data
+        data_file_name = data_path + '/rollout_data.pkl'
+        pickle.dump(p, open(data_file_name, "wb"))
 
     return pi, model

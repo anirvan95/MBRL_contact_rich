@@ -11,7 +11,7 @@ from common.monitor import Monitor
 import pickle
 
 model_learning_params = {
-    'per_train': 0.5,  # percentage of total rollouts to be trained
+    'per_train': 1,  # percentage of total rollouts to be trained
     'window_size': 2,  # window size of transition point clustering
     'weight_prior': 0.01,  # weight prior of DPGMM clustering for transition point
     'DBeps': 3.0,  # DBSCAN noise parameter for clustering segments
@@ -22,8 +22,8 @@ model_learning_params = {
     'queueSize': 5000  # buffer size of samples
 }
 svm_grid_params = {
-    'param_grid': {"C": np.logspace(-10, 10, endpoint=True, num=11, base=2.),
-                   "gamma": np.logspace(-10, 10, endpoint=True, num=11, base=2.)},
+    'param_grid': {"C": np.logspace(-10, 10, endpoint=True, num=5, base=2.),
+                   "gamma": np.logspace(-10, 10, endpoint=True, num=5, base=2.)},
     'scoring': 'accuracy',
     # 'cv': 5,
     'n_jobs': 4,
@@ -61,7 +61,7 @@ def train(args, model_path=None, data_path=None):
 
     # Train the policy using model based option actor critic
     pi, model = hier_runner.learn(env, model_path, data_path, policy_fn, model_learning_params, svm_grid_params,
-                                  svm_params_interest, svm_params_guard, modes=args.modes, rollouts=args.rollouts,
+                                  svm_params_interest, svm_params_guard, modes=args.modes, rolloutSize=args.rollouts,
                                   num_options=args.noptions,
                                   horizon=args.horizon,  # timesteps per actor per update
                                   clip_param=args.clip_param, ent_coeff=args.ent_coeff,
@@ -87,7 +87,7 @@ def main():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--env', help='environment ID', type=str, default='BlockSlide2D-v1')
     parser.add_argument('--modes', help='Maximum modes expected in the environment', default=3, type=int)
-    parser.add_argument('--noptions', help='Maximum options(edges) expected in the environment', default=4, type=int)
+    parser.add_argument('--noptions', help='Maximum options(edges) expected in the environment', default=9, type=int)
     parser.add_argument('--seed', help='RNG seed', type=int, default=1)
     parser.add_argument('--horizon', help='Maximum time horizon in each episode', default=150, type=int)
     parser.add_argument('--rollouts', help='Maximum rollouts sampled in each iterations', default=75, type=int)
@@ -126,6 +126,7 @@ def main():
         # Train the Model
         train(args, model_path, data_path)
     else:
+        # TODO fix replay and bullet rendering
         print("Setting up for replay")
         time.sleep(1)
         args.num_iteration = 1
