@@ -14,7 +14,7 @@ from model_learning import partialHybridModel
 tf1.disable_v2_behavior()
 
 
-def sample_trajectory(pi, model, env, horizon=150, rolloutSize=50, render=False):
+def sample_trajectory(pi, model, env, iteration, horizon=150, rolloutSize=50, render=False):
     """
             Generates rollouts for policy optimization
     """
@@ -22,6 +22,12 @@ def sample_trajectory(pi, model, env, horizon=150, rolloutSize=50, render=False)
         env.setRender(True)
     else:
         env.setRender(False)
+
+    if iteration > 15:
+        constraint = False
+    else:
+        constraint = True
+
     ac = env.action_space.sample()  # not used, just so we have the datatype
     new = True  # marks if we're on first timestep of an episode
     ob = env.reset()
@@ -40,8 +46,7 @@ def sample_trajectory(pi, model, env, horizon=150, rolloutSize=50, render=False)
 
     acs = np.array([ac for _ in range(batch_size)])
     model.currentMode = 0
-    option, active_options_t = pi.get_option(ob)
-    last_option = option
+    option, active_options_t = pi.get_option(ob, constraint)
 
     opt_duration = [[] for _ in range(num_options)]
     sample_index = 0
@@ -74,7 +79,7 @@ def sample_trajectory(pi, model, env, horizon=150, rolloutSize=50, render=False)
             opt_duration[option].append(curr_opt_duration)
             curr_opt_duration = 0.
             model.currentMode = model.getNextMode(ob)
-            option, active_options_t = pi.get_option(ob)
+            option, active_options_t = pi.get_option(ob, constraint)
 
         cur_ep_ret += rew
         cur_ep_len += 1
@@ -96,11 +101,14 @@ def sample_trajectory(pi, model, env, horizon=150, rolloutSize=50, render=False)
             cur_ep_ret = 0
             cur_ep_len = 0
             ob = env.reset()
-            option, active_options_t = pi.get_option(ob)
+            option, active_options_t = pi.get_option(ob, constraint)
             successFlag = False
             new = True
 
     env.close()
+    print("Selected options")
+    for o in range(0, num_options):
+        print("Option: ", o, " - ", sum(opt_duration[o]))
 
     print("\n Maximum Reward this iteration: ", max(ep_rets), " \n")
     rollouts = {"ob": obs, "rew": rews, "new": news, "ac": acs, "opts": opts, "ep_rets": ep_rets, "ep_lens": ep_lens, "opt_dur": opt_duration, "activated_options": activated_options, "success": success}
@@ -113,7 +121,7 @@ def add_vtarg_and_adv(rollouts, pi, gamma, lam, num_options):
         Compute advantage and other value functions using GAE
     """
     obs = rollouts['seg_obs']
-    opts = rollouts['seg_opts']
+    # opts = rollouts['seg_opts']
     des_opts = rollouts['des_opts']
     des_opts = des_opts.astype(int)
 
@@ -123,7 +131,7 @@ def add_vtarg_and_adv(rollouts, pi, gamma, lam, num_options):
     u_sws = []
 
     for sample in range(0, len(obs)):
-        beta, vpred, op_vpred = pi.get_preds(obs[sample, :])
+        beta, vpred, op_vpred = pi.get_preds(obs[sample, :], False)
         vpred = np.squeeze(vpred)
         u_sw = (1 - beta) * vpred + beta * op_vpred
         betas.append(beta)
@@ -251,7 +259,7 @@ def learn(env, model_path, data_path, policy_fn, model_learning_params, svm_grid
         logger.log("************* Iteration %i *************" % iters_so_far)
         print("Collecting samples for policy optimization !! ")
         render = False
-        rollouts = sample_trajectory(pi, model, env, horizon=horizon, rolloutSize=rolloutSize, render=render)
+        rollouts = sample_trajectory(pi, model, env, iters_so_far, horizon=horizon, rolloutSize=rolloutSize, render=render)
 
         # Model update
         print("Updating model !!\n")

@@ -17,13 +17,13 @@ model_learning_params = {
     'DBeps': 3.0,  # DBSCAN noise parameter for clustering segments
     'DBmin_samples': 2,  # DBSCAN minimum cluster size parameter for clustering segments
     'n_components': 2,  # number of DPGMM components to be used
-    'minLength': 8,  # minimum segment length for Gaussian modelling
+    'minLength': 3,  # minimum segment length for Gaussian modelling
     'guassianEps': 1e-6,  # epsilon term added in Gaussian covariance
-    'queueSize': 5000  # buffer size of samples
+    'queueSize': 2500  # buffer size of samples
 }
 svm_grid_params = {
-    'param_grid': {"C": np.logspace(-10, 10, endpoint=True, num=5, base=2.),
-                   "gamma": np.logspace(-10, 10, endpoint=True, num=5, base=2.)},
+    'param_grid': {"C": np.logspace(-10, 10, endpoint=True, num=8, base=2.),
+                   "gamma": np.logspace(-10, 10, endpoint=True, num=8, base=2.)},
     'scoring': 'accuracy',
     # 'cv': 5,
     'n_jobs': 4,
@@ -49,9 +49,9 @@ def train(args, model_path=None, data_path=None):
     U.make_session().__enter__()
 
     def policy_fn(name, ob_space, ac_space, hybrid_model, num_options):
-        return option_critic_model.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space, hid_size=[32, 32, 32],
+        return option_critic_model.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space, hid_size=[24, 24, 32],
                                              model=hybrid_model, num_options=num_options, num_hid_layers=[2, 2, 2],
-                                             term_prob=0.5, eps=0.001)
+                                             term_prob=0.5, eps=0.15)
 
     # Create environment
     env = gym.make(args.env)
@@ -91,18 +91,18 @@ def main():
     parser.add_argument('--seed', help='RNG seed', type=int, default=1)
     parser.add_argument('--horizon', help='Maximum time horizon in each episode', default=150, type=int)
     parser.add_argument('--rollouts', help='Maximum rollouts sampled in each iterations', default=75, type=int)
-    parser.add_argument('--clip_param', help='Clipping parameter of PPO', default=0.2, type=float)
+    parser.add_argument('--clip_param', help='Clipping parameter of PPO', default=0.25, type=float)
     parser.add_argument('--ent_coeff', help='Entropy coefficient of PPO', default=0.01, type=float)
     parser.add_argument('--optim_epochs', help='Maximum number of sub-epochs in optimization in each iteration',
                         default=50, type=int)
     parser.add_argument('--optim_stepsize', help='Step size of sub-epochs in optimization in each iteration',
-                        default=5e-4, type=float)
+                        default=3.5e-4, type=float)
     parser.add_argument('--optim_batchsize', help='Maximum number of samples in optimization in each iteration',
                         default=32, type=int)
     parser.add_argument('--gamma', help='Discount factor of GAE', default=0.99, type=float)
     parser.add_argument('--lam', help='Lambda term of GAE', default=0.95, type=int)
     parser.add_argument('--adam_epsilon', help='Optimal step size', default=1e-4, type=float)
-    parser.add_argument('--num_iteration', help='Number of training iteration', type=float, default=100)
+    parser.add_argument('--num_iteration', help='Number of training iteration', type=float, default=40)
     parser.add_argument('--retrain', help='Continued training, must provide saved model path', default=False,
                         action='store_true')
     parser.add_argument('--exp_path', help='Path to logs,model and data',

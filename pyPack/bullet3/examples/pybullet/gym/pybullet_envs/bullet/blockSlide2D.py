@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 # Change environment configuration here
 '''
 GOAL = np.array([0.075, 0.075])
-INIT = np.array([0.5, 0.6])
+INIT = np.array([0.425, 0.475])
 
 ACTION_SCALE = 1e-3
 STATE_SCALE = 10

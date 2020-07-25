@@ -84,16 +84,15 @@ class MlpPolicy(object):
         mean, std = self.action_pd(ob[None], [option])
         return mean[0], std[0]
 
-    def get_intfc(self, ob):
-        return self.model.getInterest(ob)
+    def get_intfc(self, ob, constraint):
+        return self.model.getInterest(ob, constraint)
 
     def get_tpred(self, ob):
         return self.model.getTermination(ob)
 
-    def get_preds(self, ob):
-        sampling = False
+    def get_preds(self, ob, constraint):
         beta = self.get_tpred(ob)
-        int_func = self.get_intfc(ob)
+        int_func = self.get_intfc(ob, constraint)
         # Get Q(s,w)
         vpred = []
         for opt in range(self.num_options):
@@ -104,8 +103,8 @@ class MlpPolicy(object):
 
         return beta, vpred, op_vpred
 
-    def get_option(self, ob):
-        int_func = self.get_intfc(ob)
+    def get_option(self, ob, constraint):
+        int_func = self.get_intfc(ob, constraint)
         activated_options = int_func
         vpred = []
         # max Q(s,w)

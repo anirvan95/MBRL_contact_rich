@@ -189,14 +189,14 @@ class partialHybridModel(object):
                         self.nOptions += 1
                         self.transitionGraph.add_weighted_edges_from(
                             [(self.labels[seg_count], 'goal', self.nOptions)])
-                        self.transitionUpdated = False
+                        self.transitionUpdated = True
 
                     if self.labels[seg_count + 1] >= 0:  # Avoid noisy next segment
                         # Adding mode to GOAL edge e.g. 1 > goal, 1 > goal etc
                         if not self.transitionGraph.has_edge(self.labels[seg_count + 1], 'goal'):
                             self.nOptions += 1
                             self.transitionGraph.add_weighted_edges_from([(self.labels[seg_count + 1], 'goal', self.nOptions)])
-                            self.transitionUpdated = False
+                            self.transitionUpdated = True
 
                         # Checking for transition detection while ignoring the last segment
                         if self.labels[seg_count] != self.labels[seg_count + 1] and segment < num_segments - 1:
@@ -261,7 +261,7 @@ class partialHybridModel(object):
         if len(list(self.transitionGraph.nodes)) > 2:
             for mode in range(0, len(self.dataset)):
                 modeData = self.dataset[mode]
-                print(len(modeData))
+                print("Mode", mode, "Data", len(modeData))
                 for i in range(0, len(modeData)):
                     x.append(modeData[i]['x'])
                     y.append(modeData[i]['label_t'])
@@ -290,16 +290,20 @@ class partialHybridModel(object):
             else:
                 self.modeFunction.train(X, Y, False)
 
-    def getInterest(self, ob):
+    def getInterest(self, ob, sampling):
         mode = self.currentMode
         self.intFunction = np.zeros(self.preOptions)
         if len(list(self.transitionGraph.nodes)) > 2:
             mode = self.modeFunction.predict([ob])[0]
-            nextModes = list(self.transitionGraph.successors(mode))
-            for i in range(0, len(nextModes)):
-                if nextModes[i] == 'goal' or nextModes[i] > mode:
-                    option = self.transitionGraph[mode][nextModes[i]]['weight']
-                    self.intFunction[option] = 1
+            if sampling:
+                optionInd = self.transitionGraph[mode]['goal']['weight']
+                self.intFunction[optionInd] = 1
+            else:
+                nextModes = list(self.transitionGraph.successors(mode))
+                for i in range(0, len(nextModes)):
+                    if nextModes[i] == 'goal' or nextModes[i] > mode:
+                        option = self.transitionGraph[mode][nextModes[i]]['weight']
+                        self.intFunction[option] = 1
         else:
             # Only one mode discovered, should select only that option
             optionInd = self.transitionGraph[mode]['goal']['weight']
