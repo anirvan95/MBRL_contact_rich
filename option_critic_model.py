@@ -48,8 +48,8 @@ class MlpPolicy(object):
         last_out = obz
 
         # Value function
-        for i in range(num_hid_layers[2]):
-            last_out = tf1.nn.tanh(tf1.layers.dense(last_out, hid_size[2], name="vffc%i" % (i + 1), kernel_initializer=U.normc_initializer(1.0)))
+        for i in range(num_hid_layers[0]):
+            last_out = tf1.nn.tanh(tf1.layers.dense(last_out, hid_size[0], name="vffc%i" % (i + 1), kernel_initializer=U.normc_initializer(1.0)))
         self.vpred = dense3D2(last_out, 1, "vffinal", option, num_options=num_options, weight_init=U.normc_initializer(1.0))[:, 0]
 
         # Intra option policy
@@ -58,22 +58,15 @@ class MlpPolicy(object):
             last_out = tf1.nn.tanh(
                 tf1.layers.dense(last_out, hid_size[1], name="polfc%i" % (i + 1), kernel_initializer=U.normc_initializer(1.0)))
 
-        mean = dense3D2(last_out, pdtype.param_shape()[0] // 2, "polfinal", option, num_options=num_options, weight_init=U.normc_initializer(0.01))
+        mean = dense3D2(last_out, pdtype.param_shape()[0] // 2, "polfinal", option, num_options=num_options, weight_init=U.normc_initializer(0.75))
         logstd = tf1.get_variable(name="logstd", shape=[num_options, 1, pdtype.param_shape()[0] // 2], initializer=tf1.zeros_initializer())
         pdparam = tf1.concat([mean, mean * 0.0 + logstd[option[0]]], axis=1)
         self.pd = pdtype.pdfromflat(pdparam)
         stochastic = tf1.placeholder(dtype=tf1.bool, shape=())
         ac = U.switch(stochastic, self.pd.sample(), self.pd.mode())
 
-        # Option policy
-        last_out = ob
-        for i in range(num_hid_layers[0]):
-            last_out = tf1.nn.tanh(tf1.layers.dense(last_out, hid_size[0], name="OP%i" % (i + 1), kernel_initializer=U.normc_initializer(1.0)))
-        self.op_pi = tf1.nn.softmax(tf1.layers.dense(last_out, num_options, name="OPfinal", kernel_initializer=U.normc_initializer(1.0)))
-
         self._act = U.function([stochastic, ob, option], [ac])
         self.get_vpred = U.function([ob, option], [self.vpred])
-        self._get_op = U.function([ob], [self.op_pi])
         self.action_pd = U.function([ob, option], [self.pd.mode(), self.pd.variance()])
 
     def act(self, stochastic, ob, option):

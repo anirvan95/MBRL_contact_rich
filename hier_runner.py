@@ -23,11 +23,12 @@ def sample_trajectory(pi, model, env, iteration, horizon=150, rolloutSize=50, re
     else:
         env.setRender(False)
 
-    if iteration > 15:
-        constraint = False
-    else:
-        constraint = True
+    #if iteration > 20:
+    #    constraint = False
+    #else:
+    #    constraint = True
 
+    constraint = False
     ac = env.action_space.sample()  # not used, just so we have the datatype
     new = True  # marks if we're on first timestep of an episode
     ob = env.reset()
@@ -85,7 +86,7 @@ def sample_trajectory(pi, model, env, iteration, horizon=150, rolloutSize=50, re
         cur_ep_len += 1
         dist = env.getGoalDist()
 
-        if np.linalg.norm(dist) < 0.025 and not successFlag:
+        if np.linalg.norm(dist) < 0.05 and not successFlag:
             success = success + 1
             successFlag = True
 
@@ -325,12 +326,18 @@ def learn(env, model_path, data_path, policy_fn, model_learning_params, svm_grid
         if MPI.COMM_WORLD.Get_rank() == 0:
             logger.dump_tabular()
 
-        # Save rollouts
+        # Save rollouts and model
         print("Saving rollouts !! ")
         data = {'rollouts': rollouts}
         p.append(data)
         del data
         data_file_name = data_path + '/rollout_data.pkl'
         pickle.dump(p, open(data_file_name, "wb"))
+
+        if model_path:
+            U.save_state(model_path + '/')
+            model_file_name = model_path + '/hybrid_model.pkl'
+            pickle.dump(model, open(model_file_name, "wb"), pickle.HIGHEST_PROTOCOL)
+            print("Policy and Model saved in - ", model_path)
 
     return pi, model

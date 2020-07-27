@@ -49,9 +49,9 @@ def train(args, model_path=None, data_path=None):
     U.make_session().__enter__()
 
     def policy_fn(name, ob_space, ac_space, hybrid_model, num_options):
-        return option_critic_model.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space, hid_size=[24, 24, 32],
-                                             model=hybrid_model, num_options=num_options, num_hid_layers=[2, 2, 2],
-                                             term_prob=0.5, eps=0.15)
+        return option_critic_model.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space, hid_size=[35, 25],
+                                             model=hybrid_model, num_options=num_options, num_hid_layers=[2, 2],
+                                             term_prob=0.5, eps=0.2)
 
     # Create environment
     env = gym.make(args.env)
@@ -89,24 +89,19 @@ def main():
     parser.add_argument('--modes', help='Maximum modes expected in the environment', default=3, type=int)
     parser.add_argument('--noptions', help='Maximum options(edges) expected in the environment', default=9, type=int)
     parser.add_argument('--seed', help='RNG seed', type=int, default=1)
-    parser.add_argument('--horizon', help='Maximum time horizon in each episode', default=150, type=int)
-    parser.add_argument('--rollouts', help='Maximum rollouts sampled in each iterations', default=75, type=int)
-    parser.add_argument('--clip_param', help='Clipping parameter of PPO', default=0.25, type=float)
+    parser.add_argument('--horizon', help='Maximum time horizon in each episode', default=200, type=int)
+    parser.add_argument('--rollouts', help='Maximum rollouts sampled in each iterations', default=65, type=int)
+    parser.add_argument('--clip_param', help='Clipping parameter of PPO', default=0.2, type=float)
     parser.add_argument('--ent_coeff', help='Entropy coefficient of PPO', default=0.01, type=float)
-    parser.add_argument('--optim_epochs', help='Maximum number of sub-epochs in optimization in each iteration',
-                        default=50, type=int)
-    parser.add_argument('--optim_stepsize', help='Step size of sub-epochs in optimization in each iteration',
-                        default=3.5e-4, type=float)
-    parser.add_argument('--optim_batchsize', help='Maximum number of samples in optimization in each iteration',
-                        default=32, type=int)
+    parser.add_argument('--optim_epochs', help='Maximum number of sub-epochs in optimization in each iteration', default=10, type=int)
+    parser.add_argument('--optim_stepsize', help='Step size of sub-epochs in optimization in each iteration', default=3e-4, type=float)
+    parser.add_argument('--optim_batchsize', help='Maximum number of samples in optimization in each iteration', default=50, type=int)
     parser.add_argument('--gamma', help='Discount factor of GAE', default=0.99, type=float)
     parser.add_argument('--lam', help='Lambda term of GAE', default=0.95, type=int)
     parser.add_argument('--adam_epsilon', help='Optimal step size', default=1e-4, type=float)
-    parser.add_argument('--num_iteration', help='Number of training iteration', type=float, default=40)
-    parser.add_argument('--retrain', help='Continued training, must provide saved model path', default=False,
-                        action='store_true')
-    parser.add_argument('--exp_path', help='Path to logs,model and data',
-                        default=os.path.join(logger.get_dir(), 'block_ppo'), type=str)
+    parser.add_argument('--num_iteration', help='Number of training iteration', type=float, default=50)
+    parser.add_argument('--retrain', help='Continued training, must provide saved model path', default=False, action='store_true')
+    parser.add_argument('--exp_path', help='Path to logs,model and data', default=os.path.join(logger.get_dir(), 'block_ppo'), type=str)
     parser.add_argument('--play', help='Execute the trained policy', default=False, action='store_true')
 
     args = parser.parse_args()

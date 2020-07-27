@@ -12,25 +12,28 @@ import matplotlib.cbook
 warnings.filterwarnings("ignore", category=matplotlib.cbook.mplDeprecation)
 
 stime = time.time()
-f = open("results/MOAC/exp_5/data/rollout_data.pkl", "rb")
+f = open("results/MOAC/isexp_6/data/rollout_data.pkl", "rb")
 p = pickle.load(f)
 f.close()
 
-iteration = 50
+iteration = 25
 horizon = 150
 rollouts = 20
 
-for iter in range(0, len(p), 5):
+for iter in range(0, len(p)):
     print("Iteration : ", iter)
     data = p[iter]
-    seg = data['seg']
+    seg = data['rollouts']
 
-    obs = seg['ob']
-    acs = seg['ac']
-    vpred = seg['vpred']
-    opts = seg['opts']
-    term = seg['term_p']
+    obs = seg['seg_obs']
+    acs = seg['seg_acs']
+    vpred = seg['vpreds']
+    opts = seg['seg_opts']
+    des_opts = seg['des_opts']
+    term = seg['betas']
     activ_opt = seg['activated_options']
+    advs = seg["adv"]
+    is_values = seg['is']
     # Prepare for plotting
     fig = plt.figure()
 
@@ -41,66 +44,130 @@ for iter in range(0, len(p), 5):
         value = vpred[rollout * horizon:(horizon + rollout * horizon), :]
         time_vect = np.arange(0, len(states)) * 0.01
         options = opts[rollout * horizon:(horizon + rollout * horizon)]
+        des_options = des_opts[rollout * horizon:(horizon + rollout * horizon)]
         interest = activ_opt[rollout * horizon:(horizon + rollout * horizon)]
         termination = term[rollout * horizon:(horizon + rollout * horizon), :]
+        adv = advs[rollout * horizon:(horizon + rollout * horizon)]
+        is_val = is_values[rollout * horizon:(horizon + rollout * horizon)]
         for t in range(0, len(time_vect)):
+            # Selected options
             # Trajectory X
-            ax = fig.add_subplot(241)
+            ax = fig.add_subplot(4, 4, 1)
             if options[t] == 0:
                 ax.plot(t, states[t, 0], '.r-', label='op_0', linewidth=0.3)
             elif options[t] == 1:
                 ax.plot(t, states[t, 0], '.b-', label='op_1', linewidth=0.5)
             elif options[t] == 2:
                 ax.plot(t, states[t, 0], '.g-', label='op_2', linewidth=0.7, alpha=0.2)
-            elif options[t] == 3:
-                ax.plot(t, states[t, 0], '.y-', label='op_3', linewidth=0.7, alpha=0.4)
+            elif options[t] == 4:
+                ax.plot(t, states[t, 0], '.c-', label='op_4', linewidth=0.7, alpha=0.4)
+            elif options[t] == 5:
+                ax.plot(t, states[t, 0], '.m-', label='op_5', linewidth=0.7, alpha=0.4)
+            elif options[t] == 8:
+                ax.plot(t, states[t, 0], '.y-', label='op_8', linewidth=0.7, alpha=0.4)
+
 
             # Trajectory Y
-            ax = fig.add_subplot(242)
+            ax = fig.add_subplot(4, 4, 2)
             if options[t] == 0:
                 ax.plot(t, states[t, 1], '.r-', label='op_0', linewidth=0.3)
             elif options[t] == 1:
                 ax.plot(t, states[t, 1], '.b-', label='op_1', linewidth=0.5)
             elif options[t] == 2:
                 ax.plot(t, states[t, 1], '.g-', label='op_2', linewidth=0.7, alpha=0.2)
-            elif options[t] == 3:
-                ax.plot(t, states[t, 1], '.y-', label='op_3', linewidth=0.7, alpha=0.4)
+            elif options[t] == 4:
+                ax.plot(t, states[t, 1], '.c-', label='op_4', linewidth=0.7, alpha=0.4)
+            elif options[t] == 5:
+                ax.plot(t, states[t, 1], '.m-', label='op_5', linewidth=0.7, alpha=0.4)
+            elif options[t] == 8:
+                ax.plot(t, states[t, 1], '.y-', label='op_8', linewidth=0.7, alpha=0.4)
+
+            # Desired options
+            # Trajectory x
+            ax = fig.add_subplot(4, 4, 3)
+            if des_options[t] == 0:
+                ax.plot(t, states[t, 0], '.r-', label='dop_0', linewidth=0.3)
+            elif des_options[t] == 1:
+                ax.plot(t, states[t, 0], '.b-', label='dop_1', linewidth=0.5)
+            elif des_options[t] == 2:
+                ax.plot(t, states[t, 0], '.g-', label='dop_2', linewidth=0.7, alpha=0.2)
+            elif des_options[t] == 4:
+                ax.plot(t, states[t, 0], '.c-', label='dop_4', linewidth=0.7, alpha=0.4)
+            elif des_options[t] == 5:
+                ax.plot(t, states[t, 0], '.m-', label='dop_5', linewidth=0.7, alpha=0.4)
+            elif des_options[t] == 8:
+                ax.plot(t, states[t, 0], '.y-', label='dop_8', linewidth=0.7, alpha=0.4)
+
+            # Trajectory Y
+            ax = fig.add_subplot(4, 4, 4)
+            if des_options[t] == 0:
+                ax.plot(t, states[t, 1], '.r-', label='dop_0', linewidth=0.3)
+            elif des_options[t] == 1:
+                ax.plot(t, states[t, 1], '.b-', label='dop_1', linewidth=0.5)
+            elif des_options[t] == 2:
+                ax.plot(t, states[t, 1], '.g-', label='dop_2', linewidth=0.7, alpha=0.2)
+            elif des_options[t] == 4:
+                ax.plot(t, states[t, 1], '.c-', label='dop_4', linewidth=0.7, alpha=0.4)
+            elif des_options[t] == 5:
+                ax.plot(t, states[t, 1], '.m-', label='dop_5', linewidth=0.7, alpha=0.4)
+            elif des_options[t] == 8:
+                ax.plot(t, states[t, 1], '.y-', label='dop_8', linewidth=0.7, alpha=0.4)
 
             # Option Value
-            ax = fig.add_subplot(243)
+            ax = fig.add_subplot(4, 4, 5)
             ax.plot(t, value[t, 0], '.r-', label='op_0', linewidth=0.3)
             ax.plot(t, value[t, 1], '.b-', label='op_1', linewidth=0.5)
-            ax.plot(t, value[t, 2], '.g-', label='op_2', linewidth=0.7, alpha=0.2)
-            ax.plot(t, value[t, 3], '.y-', label='op_3', linewidth=0.7, alpha=0.4)
+            ax.plot(t, value[t, 2], '.g-', label='op_2', linewidth=0.6, alpha=0.2)
+            ax.plot(t, value[t, 4], '.c-', label='op_3', linewidth=0.7, alpha=0.4)
+            ax.plot(t, value[t, 5], '.m-', label='op_3', linewidth=0.8, alpha=0.4)
+            ax.plot(t, value[t, 8], '.y-', label='op_3', linewidth=0.9, alpha=0.35)
+
 
             #Actions
-            ax = fig.add_subplot(244)
+            ax = fig.add_subplot(4, 4, 6)
             ax.plot(t, action[t, 0], '.r-', label='op_0', linewidth=0.3)
             ax.plot(t, action[t, 1], '.b-', label='op_1', linewidth=0.5)
 
+            # Advantage
+            ax = fig.add_subplot(4, 4, 7)
+            ax.plot(t, adv[t], '.r-', label='op_0', linewidth=0.3)
+
+            # Importance Sampling
+            ax = fig.add_subplot(4, 4, 8)
+            ax.plot(t, is_val[t], '.k-', label='op_0', linewidth=0.3)
+
+
             #Interest and term opt 1
-            ax = fig.add_subplot(245)
+            ax = fig.add_subplot(4, 4, 9)
             ax.plot(t, interest[t, 0], '.r-', label='op_0', linewidth=0.3)
             ax.plot(t, termination[t, 0], '.k-', label='op_0', linewidth=0.5, alpha=0.2)
 
-            ax = fig.add_subplot(246)
+            ax = fig.add_subplot(4, 4, 10)
             ax.plot(t, interest[t, 1], '.b-', label='op_1', linewidth=0.3)
             ax.plot(t, termination[t, 1], '.k-', label='op_1', linewidth=0.5, alpha=0.2)
 
-            ax = fig.add_subplot(247)
+            ax = fig.add_subplot(4, 4, 11)
             ax.plot(t, interest[t, 2], '.g-', label='op_2', linewidth=0.3)
             ax.plot(t, termination[t, 2], '.k-', label='op_2', linewidth=0.5, alpha=0.2)
 
-            ax = fig.add_subplot(248)
-            ax.plot(t, interest[t, 3], '.y-', label='op_3', linewidth=0.3)
-            ax.plot(t, termination[t, 3], '.k-', label='op_3', linewidth=0.5, alpha=0.2)
+            ax = fig.add_subplot(4, 4, 13)
+            ax.plot(t, interest[t, 4], '.c-', label='op_3', linewidth=0.3)
+            ax.plot(t, termination[t, 4], '.k-', label='op_3', linewidth=0.5, alpha=0.2)
 
-    file_name = 'figures/MOAC/exp_5/iteration_' + str(iter)
+            ax = fig.add_subplot(4, 4, 14)
+            ax.plot(t, interest[t, 5], '.m-', label='op_0', linewidth=0.5)
+            ax.plot(t, termination[t, 5], '.k-', label='op_0', linewidth=0.5, alpha=0.2)
+
+            ax = fig.add_subplot(4, 4, 15)
+            ax.plot(t, interest[t, 8], '.y-', label='op_0', linewidth=0.6)
+            ax.plot(t, termination[t, 8], '.k-', label='op_0', linewidth=0.5, alpha=0.2)
+
+    file_name = 'figures/MOAC/isexp_6/iteration_' + str(iter)
     plt.savefig(file_name)
     plt.close()
 
 
-model = pickle.load(open('results/MOAC/exp_5/model/hybrid_model.pkl','rb'))
+model = pickle.load(open('results/MOAC/isexp_6/model/hybrid_model.pkl','rb'))
 
 print("Model graph:", model.transitionGraph.nodes)
 print("Model options:", model.transitionGraph.edges)
@@ -114,6 +181,6 @@ pos = nx.spring_layout(G)
 nx.draw(G, pos, with_labels=True)
 labels = nx.get_edge_attributes(G, 'weight')
 nx.draw_networkx_edge_labels(G, pos, with_labels=True, font_weight='bold', edge_labels=labels)
-plt.savefig('figures/MOAC/exp_5/transition_graph.png')
+plt.savefig('figures/MOAC/isexp_6/transition_graph.png')
 
 print("Time taken:", time.time() - stime)
