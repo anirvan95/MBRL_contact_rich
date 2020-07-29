@@ -12,15 +12,15 @@ import matplotlib.cbook
 warnings.filterwarnings("ignore", category=matplotlib.cbook.mplDeprecation)
 
 stime = time.time()
-f = open("results/MOAC/isexp_6/data/rollout_data.pkl", "rb")
+f = open("results/MOAC/isexp_7/data/rollout_data.pkl", "rb")
 p = pickle.load(f)
 f.close()
 
 iteration = 25
-horizon = 150
+horizon = 200
 rollouts = 20
 
-for iter in range(0, len(p)):
+for iter in range(0, len(p), 2):
     print("Iteration : ", iter)
     data = p[iter]
     seg = data['rollouts']
@@ -162,12 +162,12 @@ for iter in range(0, len(p)):
             ax.plot(t, interest[t, 8], '.y-', label='op_0', linewidth=0.6)
             ax.plot(t, termination[t, 8], '.k-', label='op_0', linewidth=0.5, alpha=0.2)
 
-    file_name = 'figures/MOAC/isexp_6/iteration_' + str(iter)
+    file_name = 'figures/MOAC/isexp_7/iteration_' + str(iter)
     plt.savefig(file_name)
     plt.close()
 
 
-model = pickle.load(open('results/MOAC/isexp_6/model/hybrid_model.pkl','rb'))
+model = pickle.load(open('results/MOAC/isexp_7/model/hybrid_model.pkl','rb'))
 
 print("Model graph:", model.transitionGraph.nodes)
 print("Model options:", model.transitionGraph.edges)
@@ -181,6 +181,6 @@ pos = nx.spring_layout(G)
 nx.draw(G, pos, with_labels=True)
 labels = nx.get_edge_attributes(G, 'weight')
 nx.draw_networkx_edge_labels(G, pos, with_labels=True, font_weight='bold', edge_labels=labels)
-plt.savefig('figures/MOAC/isexp_6/transition_graph.png')
+plt.savefig('figures/MOAC/isexp_7/transition_graph.png')
 
 print("Time taken:", time.time() - stime)

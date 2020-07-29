@@ -25,8 +25,8 @@ model_learning_params = {
     'queueSize': 5000  # buffer size of samples
 }
 svm_grid_params = {
-    'param_grid': {"C": np.logspace(-10, 10, endpoint=True, num=11, base=2.),
-                   "gamma": np.logspace(-10, 10, endpoint=True, num=11, base=2.)},
+    'param_grid': {"C": np.logspace(-10, 10, endpoint=True, num=5, base=2.),
+                   "gamma": np.logspace(-10, 10, endpoint=True, num=5, base=2.)},
     'scoring': 'accuracy',
     # 'cv': 5,
     'n_jobs': 4,
@@ -152,12 +152,12 @@ def compute_likelihood(mean, std, ac):
     return likelihood
 
 
-def add_vtarg_and_adv(rollouts, gamma, lam, num_options):
+def add_vtarg_and_adv(rollouts, pi, gamma, lam, num_options):
     """
         Compute advantage and other value functions using GAE
     """
     obs = rollouts['seg_obs']
-    opts = rollouts['seg_opts']
+    # opts = rollouts['seg_opts']
     des_opts = rollouts['des_opts']
     des_opts = des_opts.astype(int)
 
@@ -167,7 +167,7 @@ def add_vtarg_and_adv(rollouts, gamma, lam, num_options):
     u_sws = []
 
     for sample in range(0, len(obs)):
-        beta, vpred, op_vpred = pi.get_preds(obs[sample, :])
+        beta, vpred, op_vpred = pi.get_preds(obs[sample, :], False)
         vpred = np.squeeze(vpred)
         u_sw = (1 - beta) * vpred + beta * op_vpred
         betas.append(beta)
@@ -196,8 +196,6 @@ def add_vtarg_and_adv(rollouts, gamma, lam, num_options):
 
     rollouts["adv"] = gaelam.T[range(len(des_opts)), des_opts]
     rollouts["tdlamret"] = rollouts["adv"] + u_sws[range(len(des_opts)), des_opts]
-    print(rollouts["adv"].shape)
-    print(rollouts["is"].shape)
     rollouts["is_adv"] = rollouts["adv"] * rollouts['is']
     rollouts["betas"] = np.array(betas)
     rollouts["vpreds"] = np.array(vpreds)
@@ -234,18 +232,18 @@ U.initialize()
 #U.load_state(policy_path)
 
 stime = time.time()
-#epochNum = 35
-#data = p[epochNum]
-#rollouts = data['seg']
+epochNum = 35
+data = p[epochNum]
+rollouts = data['seg']
 
-rollouts = sample_trajectory(pi, model, env, horizon=150, batch_size=12000, render=False)
+#rollouts = sample_trajectory(pi, model, env, horizon=150, batch_size=12000, render=False)
 model.learnPreDefModes(rollouts)
 model.learnTranstionRelation(rollouts, pi)
 model.learnGuardF()
 model.learnModeF()
 gamma = 0.99
 lam = 0.95
-add_vtarg_and_adv(rollouts, gamma, lam, num_options)
+add_vtarg_and_adv(rollouts, pi, gamma, lam, num_options)
 print("Done in : ", time.time()-stime)
 
 edges = list(model.transitionGraph.edges)
@@ -260,7 +258,7 @@ wb = Workbook()
 sheet = wb.add_sheet('Final Data check')
 obs = rollouts['seg_obs']
 acs = rollouts['seg_acs']
-print("Action dimenstion", acs.shape)
+print("Action dimension", acs.shape)
 imp_s = rollouts['is']
 adv = rollouts['is_adv']
 print(adv.shape)
@@ -281,5 +279,4 @@ for i in range(0, len(obs)):
     sheet.write(i, 7, str(betas[i, 0]))
 
 
-
-wb.save('advantage_check.xls')
+wb.save('advantage_check_2.xls')

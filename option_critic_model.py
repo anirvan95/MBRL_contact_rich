@@ -55,12 +55,14 @@ class MlpPolicy(object):
         # Intra option policy
         last_out = ob
         for i in range(num_hid_layers[1]):
-            last_out = tf1.nn.tanh(
-                tf1.layers.dense(last_out, hid_size[1], name="polfc%i" % (i + 1), kernel_initializer=U.normc_initializer(1.0)))
+            last_out = tf1.nn.tanh(tf1.layers.dense(last_out, hid_size[1], name="polfc%i" % (i + 1), kernel_initializer=U.normc_initializer(1.0)))
 
-        mean = dense3D2(last_out, pdtype.param_shape()[0] // 2, "polfinal", option, num_options=num_options, weight_init=U.normc_initializer(0.75))
-        logstd = tf1.get_variable(name="logstd", shape=[num_options, 1, pdtype.param_shape()[0] // 2], initializer=tf1.zeros_initializer())
+        '''
+        mean = dense3D2(last_out, pdtype.param_shape()[0] // 2, "polfinal", option, num_options=num_options, weight_init=U.normc_initializer(-1))
+        logstd = tf1.get_variable(name="logstd", shape=[num_options, 1, pdtype.param_shape()[0] // 2], initializer=U.normc_initializer(1.0))
         pdparam = tf1.concat([mean, mean * 0.0 + logstd[option[0]]], axis=1)
+        '''
+        pdparam = dense3D2(last_out, pdtype.param_shape()[0], "polfinal", option, num_options=num_options, weight_init=U.normc_initializer(0.01))
         self.pd = pdtype.pdfromflat(pdparam)
         stochastic = tf1.placeholder(dtype=tf1.bool, shape=())
         ac = U.switch(stochastic, self.pd.sample(), self.pd.mode())

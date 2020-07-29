@@ -1,0 +1,14 @@
+.idea/
+0_VRDemoSettings.txt
+__pycache__/
+common/__pycache__/
+debugger/advantage_check.xls
+debugger/advantage_check_2.xls
+debugger/desired_option_check.xls
+debugger/rollouts_test.pkl
+debugger/sample_count_option_check.xls
+debugger/tester.png
+figures/
+results/
+venv/
+

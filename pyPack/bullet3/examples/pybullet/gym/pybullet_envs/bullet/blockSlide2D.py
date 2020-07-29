@@ -20,13 +20,14 @@ import pybullet_data
 import pybullet_utils.bullet_client as bc
 from pkg_resources import parse_version
 
+
 logger = logging.getLogger(__name__)
 
 '''
 # Change environment configuration here
 '''
-GOAL = np.array([0.075, 0.075])
-INIT = np.array([0.3, 0.325])
+GOAL = np.array([0.15, 0.15])
+INIT = np.array([0.4, 0.525])
 
 ACTION_SCALE = 1e-3
 STATE_SCALE = 10
@@ -100,7 +101,7 @@ class BlockSlide2DEnv(gym.Env):
             self.wall_3 = p.loadURDF(os.path.join(pybullet_data.getDataPath(), "block_slide_w3.urdf"))
             self.block = p.loadURDF(os.path.join(pybullet_data.getDataPath(), "blockSlide2D.urdf"))
             self.timeStep = 0.01
-            p.setGravity(0, 0, -9.8)
+            p.setGravity(0, 0, 0)
             p.setTimeStep(self.timeStep)
             p.setRealTimeSimulation(0)
             p.setJointMotorControl2(self.block, 0, p.VELOCITY_CONTROL, force=0)

@@ -4,12 +4,16 @@ import logger
 import common.tf_util as U
 import numpy as np
 from common.mpi_adam import MpiAdam
+from common.mpi_moments import mpi_moments
 from mpi4py import MPI
 from collections import deque
 from common.math_util import zipsame, flatten_lists
+from common.model_learning_utils import compute_likelihood
 import time
 import pickle
 from model_learning import partialHybridModel
+import difflib
+import math
 
 tf1.disable_v2_behavior()
 
@@ -65,6 +69,10 @@ def sample_trajectory(pi, model, env, iteration, horizon=150, rolloutSize=50, re
 
         # Step in the environment
         ob, rew, new, _ = env.step(ac)
+        if math.isnan(ob[0]) or math.isnan(ob[1]):
+            print("NAN value in observation. !!! check check")
+            print("Force applied: ", ac)
+            break
 
         rews[sample_index] = rew
         curr_opt_duration += 1
@@ -198,6 +206,7 @@ def learn(env, model_path, data_path, policy_fn, model_learning_params, svm_grid
     # Define placeholders for computing the advantage
     ob = U.get_placeholder_cached(name="ob")
     option = U.get_placeholder_cached(name="option")
+    des_option = U.get_placeholder_cached(name="desired_option")
     ac = pi.pdtype.sample_placeholder([None])
 
     # Defining losses for optimization
@@ -208,17 +217,25 @@ def learn(env, model_path, data_path, policy_fn, model_learning_params, svm_grid
     pol_entpen = (-ent_coeff) * meanent
 
     ratio = tf1.exp(pi.pd.logp(ac) - oldpi.pd.logp(ac))  # pnew / pold
+    desired_mean, desired_std = pi.get_ac_dist(ob, option)
+    actual_mean, actual_std = pi.get_ac_dist(ob, des_option)
+    des_ratio = compute_likelihood(desired_mean, desired_std, ac) / compute_likelihood(actual_mean, actual_std, ac)
+    selector = des_option == option
+    dessurr1 = des_ratio * atarg  # surrogate from conservative policy iteration
+    dessurr2 = tf1.clip_by_value(des_ratio, 1.0 - clip_param, 1.0 + clip_param) * atarg  #
+    despolsurr = - tf1.reduce_mean(tf1.minimum(dessurr1, dessurr2))
     surr1 = ratio * atarg  # surrogate from conservative policy iteration
     surr2 = tf1.clip_by_value(ratio, 1.0 - clip_param, 1.0 + clip_param) * atarg  #
-    pol_surr = - tf1.reduce_mean(tf1.minimum(surr1, surr2))  # PPO's pessimistic surrogate (L^CLIP)
-
+    pol_surr = - tf1.reduce_mean(tf1.minimum(surr1, surr2))  # PPO's pessimistic surrogate (L^CLIP), negative to convert from a maximization to minimization problem
     vf_loss = tf1.reduce_mean(tf1.square(pi.vpred - ret))
+    # total_loss = selector*pol_surr + (1-selector)*despolsurr + pol_entpen + vf_loss
     total_loss = pol_surr + pol_entpen + vf_loss
     losses = [pol_surr, pol_entpen, vf_loss, meankl, meanent]
     loss_names = ["pol_surr", "pol_entpen", "vf_loss", "kl", "ent"]
 
     var_list = pi.get_trainable_variables()
     lossandgrad = U.function([ob, ac, atarg, ret, lrmult, option], losses + [U.flatgrad(total_loss, var_list)])
+    # lossandgrad = U.function([ob, ac, atarg, ret, lrmult, option, des_option], losses + [U.flatgrad(total_loss, var_list)])
     adam = MpiAdam(var_list, epsilon=adam_epsilon)
 
     assign_old_eq_new = U.function([], [], updates=[tf1.assign(oldv, newv) for (oldv, newv) in
@@ -234,8 +251,8 @@ def learn(env, model_path, data_path, policy_fn, model_learning_params, svm_grid
     global iters_so_far
     iters_so_far = 0
     tstart = time.time()
-    lenbuffer = deque(maxlen=5)  # rolling buffer for episode lengths
-    rewbuffer = deque(maxlen=5)  # rolling buffer for episode rewards
+    lenbuffer = deque(maxlen=10)  # rolling buffer for episode lengths
+    rewbuffer = deque(maxlen=10)  # rolling buffer for episode rewards
 
     p = []  # for saving the rollouts
 
@@ -270,6 +287,9 @@ def learn(env, model_path, data_path, policy_fn, model_learning_params, svm_grid
         edges = list(model.transitionGraph.edges)
         for i in range(0, len(edges)):
             print(edges[i][0], " -> ", edges[i][1], " : ", model.transitionGraph[edges[i][0]][edges[i][1]]['weight'])
+
+        res = difflib.SequenceMatcher(None, list(rollouts['des_opts']), list(rollouts['seg_opts']))
+        print("Percentage similarity of options: ", res.ratio()*100)
 
         datas = [0 for _ in range(num_options)]
         add_vtarg_and_adv(rollouts, pi, gamma, lam, num_options)
@@ -307,6 +327,11 @@ def learn(env, model_path, data_path, policy_fn, model_learning_params, svm_grid
                     *newlosses, grads = lossandgrad(batch["ob"], batch["ac"], batch["atarg"], batch["vtarg"], cur_lrmult, [opt])
                     adam.update(grads, optim_stepsize * cur_lrmult)
                     losses.append(newlosses)
+
+        meanlosses, _, _ = mpi_moments(losses, axis=0)
+        print("Mean loss ", meanlosses)
+        for (lossval, name) in zipsame(meanlosses, loss_names):
+            logger.record_tabular("loss_" + name, lossval)
 
         lrlocal = (rollouts["ep_lens"], rollouts["ep_rets"])  # local values
         listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal)  # list of tuples

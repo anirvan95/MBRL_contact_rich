@@ -14,6 +14,7 @@ class partialHybridModel(object):
         self.transitionGraph.add_node('goal')
         self.prevModes = len(list(self.transitionGraph.nodes))
         self.nOptions = 0
+        self.rejectedOptions = [[1, 0], [2, 1], [2, 0]]
         self.transitionGraph.add_weighted_edges_from([(0, 'goal', self.nOptions)])
         self.env_id = env.unwrapped.spec.id
         self.preOptions = options
@@ -55,7 +56,7 @@ class partialHybridModel(object):
             for t in range(0, traj_time - 1):
                 label = obtainMode(self.env_id, states[t, :])
                 label_t = obtainMode(self.env_id, states[t + 1, :])
-                dataDict = {'x': states[t, :], 'label': label, 'label_t': label_t}
+                dataDict = {'x': states[t, 0:2], 'label': label, 'label_t': label_t}
                 self.dataset[int(label)].append(dataDict)
                 if label != label_t:
                     tp.append(t)
@@ -206,7 +207,7 @@ class partialHybridModel(object):
 
                             # Assign the desired option for transition
                             # 0>1
-                            if self.labels[seg_count + 1] > self.labels[seg_count]:
+                            if not [self.labels[seg_count], self.labels[seg_count]+1] in self.rejectedOptions:
                                 des_opts_seg[seg_count] = self.transitionGraph[self.labels[seg_count]][self.labels[seg_count + 1]]['weight']
                             # 1>0 gets assigned to 1>goal
                             else:
@@ -217,11 +218,11 @@ class partialHybridModel(object):
                             des_opts_seg[seg_count] = self.transitionGraph[self.labels[seg_count]]['goal']['weight']
 
                     # Creating the updated database
-                    segStates = states[self.segment_data[rollout][1][segment][0]:self.segment_data[rollout][1][segment][1], :]
-                    segAction = action[self.segment_data[rollout][1][segment][0]:self.segment_data[rollout][1][segment][1], :]
-                    segOpts = option[self.segment_data[rollout][1][segment][0]:self.segment_data[rollout][1][segment][1]]
-                    segReward = rewards[self.segment_data[rollout][1][segment][0]:self.segment_data[rollout][1][segment][1]]
-                    segEpisode = episode[self.segment_data[rollout][1][segment][0]:self.segment_data[rollout][1][segment][1]]
+                    segStates = states[self.segment_data[rollout][1][segment][0]:(self.segment_data[rollout][1][segment][1]+1), :]
+                    segAction = action[self.segment_data[rollout][1][segment][0]:(self.segment_data[rollout][1][segment][1]+1), :]
+                    segOpts = option[self.segment_data[rollout][1][segment][0]:(self.segment_data[rollout][1][segment][1]+1)]
+                    segReward = rewards[self.segment_data[rollout][1][segment][0]:(self.segment_data[rollout][1][segment][1]+1)]
+                    segEpisode = episode[self.segment_data[rollout][1][segment][0]:(self.segment_data[rollout][1][segment][1]+1)]
 
                     if seg_count == 0:
                         seg_obs = segStates
@@ -294,14 +295,14 @@ class partialHybridModel(object):
         mode = self.currentMode
         self.intFunction = np.zeros(self.preOptions)
         if len(list(self.transitionGraph.nodes)) > 2:
-            mode = self.modeFunction.predict([ob])[0]
+            mode = self.modeFunction.predict([ob[0:2]])[0]
             if sampling:
                 optionInd = self.transitionGraph[mode]['goal']['weight']
                 self.intFunction[optionInd] = 1
             else:
                 nextModes = list(self.transitionGraph.successors(mode))
                 for i in range(0, len(nextModes)):
-                    if nextModes[i] == 'goal' or nextModes[i] > mode:
+                    if not [mode, nextModes[i]] in self.rejectedOptions:
                         option = self.transitionGraph[mode][nextModes[i]]['weight']
                         self.intFunction[option] = 1
         else:
@@ -316,7 +317,7 @@ class partialHybridModel(object):
         self.termFunction = np.ones(self.preOptions)
 
         if len(list(self.transitionGraph.nodes)) > 2:
-            mode = self.modeFunction.predict([ob])[0]
+            mode = self.modeFunction.predict([ob[0:2]])[0]
             local_group = list(self.transitionGraph.successors(mode)) + list(self.transitionGraph.predecessors(mode)) + list([mode])
             if 'goal' in local_group:
                 local_group.remove('goal')
@@ -326,7 +327,7 @@ class partialHybridModel(object):
             complete_graph = list(self.transitionGraph.nodes)
             complete_graph.remove('goal')
             complete_graph.sort()
-            next_modes_prob = self.guardFunction.predict_f([ob])[0]
+            next_modes_prob = self.guardFunction.predict_f([ob[0:2]])[0]
             # Normalize
             sum_prob = 0
             for i in range(0, len(local_group)):
@@ -336,7 +337,7 @@ class partialHybridModel(object):
             term_prob = 1 - norm_nmode_prob
             nextModes = list(self.transitionGraph.successors(mode))
             for i in range(0, len(nextModes)):
-                if nextModes[i] == 'goal' or nextModes[i] > mode:
+                if not [mode, nextModes[i]] in self.rejectedOptions:
                     optionInd = self.transitionGraph[mode][nextModes[i]]['weight']
                     self.termFunction[optionInd] = term_prob
         else:
@@ -348,7 +349,7 @@ class partialHybridModel(object):
 
     def getNextMode(self, ob):
         try:
-            mode = self.modeFunction.predict([ob])[0]
+            mode = self.modeFunction.predict([ob[0:2]])[0]
         except NotFittedError as e:
             mode = self.currentMode
         return mode

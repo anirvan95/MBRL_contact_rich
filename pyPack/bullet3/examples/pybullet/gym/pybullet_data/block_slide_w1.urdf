@@ -27,7 +27,7 @@
 	</link>
 
 	<joint name="base_wl1" type="fixed">
-		<origin xyz="-0.025 0.5 0.5"/>
+		<origin xyz="-0.025 1 1"/>
 		<parent link="plane"/>
 		<child link="wl1"/>
   	</joint>
@@ -35,13 +35,13 @@
 	<link name="wl1">
 		<visual>
             <geometry>
-				<box size="0.05 1 1"/>
+				<box size="0.05 2 2"/>
 			</geometry>
             <material name="blue"/>
         </visual>
 		<collision>
 			<geometry>
-				<box size="0.05 1 1"/>
+				<box size="0.05 2 2"/>
 			</geometry>
 		</collision>
 		<inertial>

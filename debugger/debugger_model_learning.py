@@ -6,6 +6,7 @@ import gym
 import pybullet_envs
 import xlwt
 from xlwt import Workbook
+import matplotlib.pyplot as plt
 
 wb = Workbook()
 sheet = wb.add_sheet('Sheet 1')
@@ -17,7 +18,7 @@ model_learning_params = {
     'DBeps': 3.0,  # DBSCAN noise parameter for clustering segments
     'DBmin_samples': 2,  # DBSCAN minimum cluster size parameter for clustering segments
     'n_components': 2,  # number of DPGMM components to be used
-    'minLength': 8,  # minimum segment length for Gaussian modelling
+    'minLength': 3,  # minimum segment length for Gaussian modelling
     'guassianEps': 1e-6,  # epsilon term added in Gaussian covariance
     'queueSize': 5000  # buffer size of samples
 }
@@ -48,7 +49,7 @@ f = open("results/MOAC/exp_5/data/rollout_data.pkl", "rb")
 p = pickle.load(f)
 f.close()
 horizon = 150
-rolloutSize = 75
+rolloutSize = 65
 modes = 3
 num_options = 9
 queueSize = 5000
@@ -64,19 +65,28 @@ opts = rollouts['opts']
 desOpts = opts
 segmented_traj = []
 seg_labels = []
-for rollout in range(0, train_rollouts):
+fig = plt.figure()
+
+for rollout in range(0, 3):
     states = obs[rollout * horizon:(horizon + rollout * horizon), :]
     traj_time = len(states)
     tp = []
+    ax = fig.add_subplot(1, 3, rollout+1)
     for t in range(0, traj_time - 1):
         label = obtainMode(env_id, states[t, :])
         label_t = obtainMode(env_id, states[t + 1, :])
         dataDict = {'x': states[t, :], 'label': label, 'label_t': label_t}
+        if label == 0:
+            ax.plot(states[t, 0], states[t, 1], '.r-')
+        elif label == 1:
+            ax.plot(states[t, 0], states[t, 1], '.b-')
+        elif label == 2:
+            ax.plot(states[t, 0], states[t, 1], '.g-')
         model.dataset[int(label)].append(dataDict)
         if label != label_t:
             tp.append(t)
     tp.append(0)
-    tp.append(traj_time)
+    tp.append(traj_time-1)
     tp.sort()
     tp = np.array(tp)
     selectedSeg = []
@@ -88,60 +98,87 @@ for rollout in range(0, train_rollouts):
 
 labels = np.array(seg_labels)
 segment_data = np.array(segmented_traj)
-# print(labels)
-# print(segment_data)
+print(labels)
+print(segment_data)
+plt.show()
+plt.savefig('tester.png')
+
 desOptionsLabels = np.zeros(labels.shape)
 segCount = 0
-for rollout in range(0, train_rollouts-1):
-    print("Rollout: ", rollout)
-    opt = opts[rollout * horizon:(horizon + rollout * horizon)]
-    rolloutIndex = rollout * horizon
-    numSegments = len(segment_data[rollout][1])
-    for segment in range(0, numSegments):
-        print("Segment Num: ", segment)
-        # Avoid Noisy segments
-        if labels[segCount] >= 0:
-            # Adding mode to GOAL edge e.g. 0 > goal, 1 > goal etc
-            if not model.transitionGraph.has_edge(labels[segCount], 'goal'):
-                model.nOptions += 1
-                model.transitionGraph.add_weighted_edges_from([(labels[segCount], 'goal', model.nOptions)])
+seg_count = 0
+des_opts_seg = np.zeros(labels.shape)
+des_opts = []
+imp_samp = []
+des_act = []
 
-            if labels[segCount + 1] >= 0:  # Avoid noisy next segment
+seg_obs = []
+seg_acs = []
+seg_opts = []
+seg_rews = []
+seg_news = []
+print("Rejected options", model.rejectedOptions)
+for rollout in range(0, 2):
+    option = opts[rollout * model.horizon:(model.horizon + rollout * model.horizon)]
+    states = obs[rollout * model.horizon:(model.horizon + rollout * model.horizon), :]
+    num_segments = len(segment_data[rollout][1])
+    print("Rollout ", rollout, "seg :", num_segments)
+    for segment in range(0, num_segments):
+        print("Segment num = ", segment, "label: ", labels[seg_count])
+        # Avoid Noisy segments
+        if labels[seg_count] >= 0:
+            # Adding mode to GOAL edge e.g. 0 > goal, 1 > goal etc
+            if not model.transitionGraph.has_edge(labels[seg_count], 'goal'):
+                model.nOptions += 1
+                model.transitionGraph.add_weighted_edges_from([(model.labels[seg_count], 'goal', model.nOptions)])
+                model.transitionUpdated = False
+
+            if labels[seg_count + 1] >= 0:  # Avoid noisy next segment
                 # Adding mode to GOAL edge e.g. 1 > goal, 1 > goal etc
-                if not model.transitionGraph.has_edge(labels[segCount + 1], 'goal'):
+                if not model.transitionGraph.has_edge(labels[seg_count + 1], 'goal'):
                     model.nOptions += 1
-                    model.transitionGraph.add_weighted_edges_from([(labels[segCount + 1], 'goal', model.nOptions)])
+                    model.transitionGraph.add_weighted_edges_from([(labels[seg_count + 1], 'goal', model.nOptions)])
 
                 # Checking for transition detection while ignoring the last segment
-                if labels[segCount] != labels[segCount + 1] and segment < numSegments - 1:
-                    if not (model.transitionGraph.has_edge(labels[segCount], labels[segCount + 1])):
+                if labels[seg_count] != labels[seg_count + 1] and segment < num_segments - 1:
+                    print("Assigning Transition and desired option ", labels[seg_count+1])
+                    if not (model.transitionGraph.has_edge(labels[seg_count], labels[seg_count + 1])):
                         model.nOptions += 1
-                        model.transitionGraph.add_weighted_edges_from([(labels[segCount], labels[segCount + 1], model.nOptions)])
+                        model.transitionGraph.add_weighted_edges_from([(labels[seg_count], labels[seg_count + 1], model.nOptions)])
 
-                    print(list(model.transitionGraph.edges))
                     # Assign the desired option for transition
                     # 0>1
-                    if labels[segCount + 1] > labels[segCount]:
-                        desOptionsLabels[segCount] = model.transitionGraph[labels[segCount]][labels[segCount + 1]]['weight']
-                        desOpts[rolloutIndex + segment_data[rollout][1][segment][0]:rolloutIndex + segment_data[rollout][1][segment][1]] = model.transitionGraph[labels[segCount]][labels[segCount + 1]]['weight']
+                    if not [labels[seg_count], labels[seg_count+1]] in model.rejectedOptions:
+
+                        des_opts_seg[seg_count] = model.transitionGraph[labels[seg_count]][labels[seg_count + 1]]['weight']
+                        print("Assigned, ", des_opts_seg[seg_count])
                     # 1>0 gets assigned to 1>goal
                     else:
-                        desOptionsLabels[segCount] = model.transitionGraph[labels[segCount]]['goal']['weight']
-                        desOpts[rolloutIndex + segment_data[rollout][1][segment][0]:rolloutIndex + segment_data[rollout][1][segment][1]] = model.transitionGraph[labels[segCount]]['goal']['weight']
-
+                        des_opts_seg[seg_count] = model.transitionGraph[labels[seg_count]]['goal']['weight']
+                        print("Option in rejected list, Assigned, ", des_opts_seg[seg_count])
                 # Assigning desired option for last segment or only one segment
                 else:
-                    desOptionsLabels[segCount] = model.transitionGraph[labels[segCount]]['goal']['weight']
-                    desOpts[rolloutIndex + segment_data[rollout][1][segment][0]:rolloutIndex + segment_data[rollout][1][segment][1]] = model.transitionGraph[labels[segCount]]['goal']['weight']
+                    print("No transition found, ", des_opts_seg[seg_count])
+                    des_opts_seg[seg_count] = model.transitionGraph[labels[seg_count]]['goal']['weight']
 
-        xl_sheet_string = 'seg : ' + str(segment_data[rollout][1][segment]) + ', l :' + str(labels[segCount]) + ', do :' + str(desOptionsLabels[segCount])
-        sheet.write(rollout, segment, xl_sheet_string)
-        segCount += 1
+            # Creating the updated database
+            segStates = states[segment_data[rollout][1][segment][0]:(segment_data[rollout][1][segment][1]+1), :]
+            segOpts = option[segment_data[rollout][1][segment][0]:(segment_data[rollout][1][segment][1]+1)]
+            print("Segment states length, ", len(segStates))
+            if seg_count == 0:
+                seg_obs = segStates
+                seg_opts = segOpts
+            else:
+                seg_obs = np.vstack((seg_obs, segStates))
+                seg_opts = np.append(seg_opts, segOpts)
+            # Compute importance sampling ration
+            is_ratio = 1
+            for t in range(0, len(segStates)):
+                des_opts.append(des_opts_seg[seg_count])
 
-sheet = wb.add_sheet('Sheet 2')
+        seg_count += 1
+print("Model graph:", model.transitionGraph.nodes)
+print("Model options:", model.transitionGraph.edges)
 edges = list(model.transitionGraph.edges)
 for i in range(0, len(edges)):
     print(edges[i][0], " -> ", edges[i][1], " : ", model.transitionGraph[edges[i][0]][edges[i][1]]['weight'])
-print("Options: ", model.nOptions)
-
-wb.save('desired_option_check.xls')
+print(des_opts_seg)
