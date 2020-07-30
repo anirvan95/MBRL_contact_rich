@@ -14,7 +14,7 @@ class partialHybridModel(object):
         self.transitionGraph.add_node('goal')
         self.prevModes = len(list(self.transitionGraph.nodes))
         self.nOptions = 0
-        self.rejectedOptions = [[1, 0], [2, 1], [2, 0]]
+        self.rejectedOptions = [[1, 0], [2, 1], [2, 0], [1, 2]]
         self.transitionGraph.add_weighted_edges_from([(0, 'goal', self.nOptions)])
         self.env_id = env.unwrapped.spec.id
         self.preOptions = options
@@ -188,8 +188,7 @@ class partialHybridModel(object):
                     # Adding mode to GOAL edge e.g. 0 > goal, 1 > goal etc
                     if not self.transitionGraph.has_edge(self.labels[seg_count], 'goal'):
                         self.nOptions += 1
-                        self.transitionGraph.add_weighted_edges_from(
-                            [(self.labels[seg_count], 'goal', self.nOptions)])
+                        self.transitionGraph.add_weighted_edges_from([(self.labels[seg_count], 'goal', self.nOptions)])
                         self.transitionUpdated = True
 
                     if self.labels[seg_count + 1] >= 0:  # Avoid noisy next segment
@@ -207,7 +206,7 @@ class partialHybridModel(object):
 
                             # Assign the desired option for transition
                             # 0>1
-                            if not [self.labels[seg_count], self.labels[seg_count]+1] in self.rejectedOptions:
+                            if not [self.labels[seg_count], self.labels[seg_count+1]] in self.rejectedOptions:
                                 des_opts_seg[seg_count] = self.transitionGraph[self.labels[seg_count]][self.labels[seg_count + 1]]['weight']
                             # 1>0 gets assigned to 1>goal
                             else:
@@ -246,7 +245,7 @@ class partialHybridModel(object):
                         des_opts.append(des_opts_seg[seg_count])
 
                 seg_count += 1
-
+        self.des_opts_s = des_opts_seg
         rollouts['is'] = np.array(imp_samp)
         rollouts['des_opts'] = np.array(des_opts)
         rollouts['seg_obs'] = seg_obs

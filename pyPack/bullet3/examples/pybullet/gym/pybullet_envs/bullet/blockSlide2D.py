@@ -27,10 +27,11 @@ logger = logging.getLogger(__name__)
 # Change environment configuration here
 '''
 GOAL = np.array([0.15, 0.15])
-INIT = np.array([0.4, 0.525])
+INIT = np.array([0.4, 0.4])
 
-ACTION_SCALE = 1e-3
-STATE_SCALE = 10
+ACTION_SCALE = 2e-2
+STATE_SCALE = 3
+EXPONENT_SCALE = 10
 
 
 class BlockSlide2DEnv(gym.Env):
@@ -77,7 +78,7 @@ class BlockSlide2DEnv(gym.Env):
         dist = pos - GOAL
         reward_dist = -STATE_SCALE * np.linalg.norm(dist)
         reward_ctrl = -ACTION_SCALE * np.square(action).sum()
-        reward = reward_dist + reward_ctrl
+        reward = EXPONENT_SCALE*np.exp(reward_dist + reward_ctrl)
 
         return np.array(self.state), reward, done, {}
 
@@ -100,7 +101,7 @@ class BlockSlide2DEnv(gym.Env):
             self.wall_2 = p.loadURDF(os.path.join(pybullet_data.getDataPath(), "block_slide_w2.urdf"))
             self.wall_3 = p.loadURDF(os.path.join(pybullet_data.getDataPath(), "block_slide_w3.urdf"))
             self.block = p.loadURDF(os.path.join(pybullet_data.getDataPath(), "blockSlide2D.urdf"))
-            self.timeStep = 0.01
+            self.timeStep = 0.025
             p.setGravity(0, 0, 0)
             p.setTimeStep(self.timeStep)
             p.setRealTimeSimulation(0)

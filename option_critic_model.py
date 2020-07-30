@@ -39,6 +39,7 @@ class MlpPolicy(object):
         self.ac_dim = ac_space.shape[0]
         self.model = model
         self.eps = eps
+        self.trained_options = []
         ob = U.get_placeholder(name="ob", dtype=tf1.float32, shape=[sequence_length] + list(ob_space.shape))
         option = U.get_placeholder(name="option", dtype=tf1.int32, shape=[None])
         self.pdtype = pdtype = DiagGaussianPdType(ac_space.shape[0])
@@ -49,20 +50,22 @@ class MlpPolicy(object):
 
         # Value function
         for i in range(num_hid_layers[0]):
-            last_out = tf1.nn.tanh(tf1.layers.dense(last_out, hid_size[0], name="vffc%i" % (i + 1), kernel_initializer=U.normc_initializer(1.0)))
+            last_out = tf1.nn.tanh(tf1.layers.dense(last_out, hid_size[0], name="vffc%i" % (i + 1),
+                                                    kernel_initializer=U.normc_initializer(1.0)))
         self.vpred = dense3D2(last_out, 1, "vffinal", option, num_options=num_options, weight_init=U.normc_initializer(1.0))[:, 0]
 
         # Intra option policy
         last_out = ob
         for i in range(num_hid_layers[1]):
-            last_out = tf1.nn.tanh(tf1.layers.dense(last_out, hid_size[1], name="polfc%i" % (i + 1), kernel_initializer=U.normc_initializer(1.0)))
+            last_out = tf1.nn.tanh(tf1.layers.dense(last_out, hid_size[1], name="polfc%i" % (i + 1),
+                                                    kernel_initializer=U.normc_initializer(1.0)))
 
-        '''
-        mean = dense3D2(last_out, pdtype.param_shape()[0] // 2, "polfinal", option, num_options=num_options, weight_init=U.normc_initializer(-1))
-        logstd = tf1.get_variable(name="logstd", shape=[num_options, 1, pdtype.param_shape()[0] // 2], initializer=U.normc_initializer(1.0))
+        mean = dense3D2(last_out, pdtype.param_shape()[0] // 2, "polfinal", option, num_options=num_options,
+                        weight_init=U.normc_initializer(-0.5))
+        logstd = tf1.get_variable(name="logstd", shape=[num_options, 1, pdtype.param_shape()[0] // 2], initializer=U.normc_initializer(1.0), trainable=True)
         pdparam = tf1.concat([mean, mean * 0.0 + logstd[option[0]]], axis=1)
-        '''
-        pdparam = dense3D2(last_out, pdtype.param_shape()[0], "polfinal", option, num_options=num_options, weight_init=U.normc_initializer(0.01))
+
+        # pdparam = dense3D2(last_out, pdtype.param_shape()[0], "polfinal", option, num_options=num_options, weight_init=U.normc_initializer(-0.6))
         self.pd = pdtype.pdfromflat(pdparam)
         stochastic = tf1.placeholder(dtype=tf1.bool, shape=())
         ac = U.switch(stochastic, self.pd.sample(), self.pd.mode())
@@ -104,7 +107,7 @@ class MlpPolicy(object):
         vpred = []
         # max Q(s,w)
         for opt in range(self.num_options):
-            vpred.append(int_func[opt]*self.get_vpred(ob, [opt])[0])
+            vpred.append(int_func[opt] * self.get_vpred(ob, [opt])[0])
         vpred = np.array(vpred)
         max = float('-inf')
         available_options = []

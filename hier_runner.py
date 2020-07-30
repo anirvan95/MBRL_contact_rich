@@ -61,6 +61,9 @@ def sample_trajectory(pi, model, env, iteration, horizon=150, rolloutSize=50, re
     successFlag = False
     while sample_index < batch_size:
         ac = pi.act(True, ob, option)
+        if math.isnan(ac[0]) or math.isnan(ac[1]):
+            #print("Resolving NAN !! ")
+            continue
         obs[sample_index] = ob
         news[sample_index] = new
         opts[sample_index] = option
@@ -69,10 +72,7 @@ def sample_trajectory(pi, model, env, iteration, horizon=150, rolloutSize=50, re
 
         # Step in the environment
         ob, rew, new, _ = env.step(ac)
-        if math.isnan(ob[0]) or math.isnan(ob[1]):
-            print("NAN value in observation. !!! check check")
-            print("Force applied: ", ac)
-            break
+
 
         rews[sample_index] = rew
         curr_opt_duration += 1
@@ -206,7 +206,7 @@ def learn(env, model_path, data_path, policy_fn, model_learning_params, svm_grid
     # Define placeholders for computing the advantage
     ob = U.get_placeholder_cached(name="ob")
     option = U.get_placeholder_cached(name="option")
-    des_option = U.get_placeholder_cached(name="desired_option")
+    #des_option = U.get_placeholder(name="des_option", dtype=tf1.int32, shape=[None])
     ac = pi.pdtype.sample_placeholder([None])
 
     # Defining losses for optimization
@@ -217,18 +217,10 @@ def learn(env, model_path, data_path, policy_fn, model_learning_params, svm_grid
     pol_entpen = (-ent_coeff) * meanent
 
     ratio = tf1.exp(pi.pd.logp(ac) - oldpi.pd.logp(ac))  # pnew / pold
-    desired_mean, desired_std = pi.get_ac_dist(ob, option)
-    actual_mean, actual_std = pi.get_ac_dist(ob, des_option)
-    des_ratio = compute_likelihood(desired_mean, desired_std, ac) / compute_likelihood(actual_mean, actual_std, ac)
-    selector = des_option == option
-    dessurr1 = des_ratio * atarg  # surrogate from conservative policy iteration
-    dessurr2 = tf1.clip_by_value(des_ratio, 1.0 - clip_param, 1.0 + clip_param) * atarg  #
-    despolsurr = - tf1.reduce_mean(tf1.minimum(dessurr1, dessurr2))
     surr1 = ratio * atarg  # surrogate from conservative policy iteration
     surr2 = tf1.clip_by_value(ratio, 1.0 - clip_param, 1.0 + clip_param) * atarg  #
     pol_surr = - tf1.reduce_mean(tf1.minimum(surr1, surr2))  # PPO's pessimistic surrogate (L^CLIP), negative to convert from a maximization to minimization problem
     vf_loss = tf1.reduce_mean(tf1.square(pi.vpred - ret))
-    # total_loss = selector*pol_surr + (1-selector)*despolsurr + pol_entpen + vf_loss
     total_loss = pol_surr + pol_entpen + vf_loss
     losses = [pol_surr, pol_entpen, vf_loss, meankl, meanent]
     loss_names = ["pol_surr", "pol_entpen", "vf_loss", "kl", "ent"]
@@ -288,13 +280,17 @@ def learn(env, model_path, data_path, policy_fn, model_learning_params, svm_grid
         for i in range(0, len(edges)):
             print(edges[i][0], " -> ", edges[i][1], " : ", model.transitionGraph[edges[i][0]][edges[i][1]]['weight'])
 
-        res = difflib.SequenceMatcher(None, list(rollouts['des_opts']), list(rollouts['seg_opts']))
-        print("Percentage similarity of options: ", res.ratio()*100)
-
         datas = [0 for _ in range(num_options)]
         add_vtarg_and_adv(rollouts, pi, gamma, lam, num_options)
 
         ob, ac, opts, atarg, tdlamret = rollouts["seg_obs"], rollouts["seg_acs"], rollouts["des_opts"], rollouts["is_adv"], rollouts["tdlamret"]
+        old_opts  = rollouts["seg_opts"]
+        similarity = 0
+        for i in range(0, len(old_opts)):
+            if old_opts[i] == opts[i]:
+                similarity += 1
+
+        print("Percentage similarity of options: ", similarity/len(old_opts) * 100)
 
         vpredbefore = rollouts["vpreds"]  # predicted value function before udpate
         atarg = (atarg - atarg.mean()) / atarg.std()  # standardized advantage function estimate
@@ -325,13 +321,15 @@ def learn(env, model_path, data_path, policy_fn, model_learning_params, svm_grid
                 losses = []  # list of tuples, each of which gives the loss for a minibatch
                 for batch in d.iterate_once(optim_batchsize_corrected):
                     *newlosses, grads = lossandgrad(batch["ob"], batch["ac"], batch["atarg"], batch["vtarg"], cur_lrmult, [opt])
+                    if np.isnan(newlosses).any():
+                        continue
                     adam.update(grads, optim_stepsize * cur_lrmult)
                     losses.append(newlosses)
-
-        meanlosses, _, _ = mpi_moments(losses, axis=0)
-        print("Mean loss ", meanlosses)
-        for (lossval, name) in zipsame(meanlosses, loss_names):
-            logger.record_tabular("loss_" + name, lossval)
+        if len(losses) > 0:
+            meanlosses, _, _ = mpi_moments(losses, axis=0)
+            print("Mean loss ", meanlosses)
+            for (lossval, name) in zipsame(meanlosses, loss_names):
+                logger.record_tabular("loss_" + name, lossval)
 
         lrlocal = (rollouts["ep_lens"], rollouts["ep_rets"])  # local values
         listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal)  # list of tuples
@@ -356,6 +354,7 @@ def learn(env, model_path, data_path, policy_fn, model_learning_params, svm_grid
         data = {'rollouts': rollouts}
         p.append(data)
         del data
+        del rollouts
         data_file_name = data_path + '/rollout_data.pkl'
         pickle.dump(p, open(data_file_name, "wb"))
 

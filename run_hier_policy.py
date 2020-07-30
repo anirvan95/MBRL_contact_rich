@@ -49,9 +49,9 @@ def train(args, model_path=None, data_path=None):
     U.make_session().__enter__()
 
     def policy_fn(name, ob_space, ac_space, hybrid_model, num_options):
-        return option_critic_model.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space, hid_size=[35, 25],
+        return option_critic_model.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space, hid_size=[64, 32],
                                              model=hybrid_model, num_options=num_options, num_hid_layers=[2, 2],
-                                             term_prob=0.5, eps=0.2)
+                                             term_prob=0.5, eps=0.25)
 
     # Create environment
     env = gym.make(args.env)
@@ -71,7 +71,7 @@ def train(args, model_path=None, data_path=None):
                                   gamma=args.gamma, lam=args.lam,  # advantage estimation
                                   max_iters=args.num_iteration,  # time constraint
                                   adam_epsilon=args.adam_epsilon,
-                                  schedule='constant',  # annealing for stepsize parameters (epsilon and adam)
+                                  schedule='linear',  # annealing for stepsize parameters (epsilon and adam)
                                   retrain=args.retrain
                                   )
     if model_path:
@@ -89,13 +89,13 @@ def main():
     parser.add_argument('--modes', help='Maximum modes expected in the environment', default=3, type=int)
     parser.add_argument('--noptions', help='Maximum options(edges) expected in the environment', default=9, type=int)
     parser.add_argument('--seed', help='RNG seed', type=int, default=1)
-    parser.add_argument('--horizon', help='Maximum time horizon in each episode', default=200, type=int)
-    parser.add_argument('--rollouts', help='Maximum rollouts sampled in each iterations', default=65, type=int)
-    parser.add_argument('--clip_param', help='Clipping parameter of PPO', default=0.5, type=float)
+    parser.add_argument('--horizon', help='Maximum time horizon in each episode', default=80, type=int)
+    parser.add_argument('--rollouts', help='Maximum rollouts sampled in each iterations', default=80, type=int)
+    parser.add_argument('--clip_param', help='Clipping parameter of PPO', default=0.25, type=float)
     parser.add_argument('--ent_coeff', help='Entropy coefficient of PPO', default=0.0, type=float)
     parser.add_argument('--optim_epochs', help='Maximum number of sub-epochs in optimization in each iteration', default=10, type=int)
-    parser.add_argument('--optim_stepsize', help='Step size of sub-epochs in optimization in each iteration', default=3.0e-4, type=float)
-    parser.add_argument('--optim_batchsize', help='Maximum number of samples in optimization in each iteration', default=100, type=int)
+    parser.add_argument('--optim_stepsize', help='Step size of sub-epochs in optimization in each iteration', default=3.25e-4, type=float)
+    parser.add_argument('--optim_batchsize', help='Maximum number of samples in optimization in each iteration', default=50, type=int)
     parser.add_argument('--gamma', help='Discount factor of GAE', default=0.99, type=float)
     parser.add_argument('--lam', help='Lambda term of GAE', default=0.95, type=int)
     parser.add_argument('--adam_epsilon', help='Optimal step size', default=1e-4, type=float)
@@ -139,7 +139,7 @@ def main():
             ob, rew, new, _ = env.step(ac)
             env.render()
             time_step = time_step + 1
-            time.sleep(0.01)
+            time.sleep(0.025)
             nbeta = pi.get_tpred(ob)
             tprob = nbeta[option]
             model.currentMode = model.getNextMode(ob)
