@@ -49,9 +49,9 @@ def train(args, model_path=None, data_path=None):
     U.make_session().__enter__()
 
     def policy_fn(name, ob_space, ac_space, hybrid_model, num_options):
-        return option_critic_model.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space, hid_size=[64, 32],
+        return option_critic_model.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space, hid_size=[32, 32],
                                              model=hybrid_model, num_options=num_options, num_hid_layers=[2, 2],
-                                             term_prob=0.5, eps=0.25)
+                                             term_prob=0.5, eps=0.5)
 
     # Create environment
     env = gym.make(args.env)
@@ -90,12 +90,12 @@ def main():
     parser.add_argument('--noptions', help='Maximum options(edges) expected in the environment', default=9, type=int)
     parser.add_argument('--seed', help='RNG seed', type=int, default=1)
     parser.add_argument('--horizon', help='Maximum time horizon in each episode', default=80, type=int)
-    parser.add_argument('--rollouts', help='Maximum rollouts sampled in each iterations', default=80, type=int)
+    parser.add_argument('--rollouts', help='Maximum rollouts sampled in each iterations', default=100, type=int)
     parser.add_argument('--clip_param', help='Clipping parameter of PPO', default=0.25, type=float)
     parser.add_argument('--ent_coeff', help='Entropy coefficient of PPO', default=0.0, type=float)
     parser.add_argument('--optim_epochs', help='Maximum number of sub-epochs in optimization in each iteration', default=10, type=int)
     parser.add_argument('--optim_stepsize', help='Step size of sub-epochs in optimization in each iteration', default=3.25e-4, type=float)
-    parser.add_argument('--optim_batchsize', help='Maximum number of samples in optimization in each iteration', default=50, type=int)
+    parser.add_argument('--optim_batchsize', help='Maximum number of samples in optimization in each iteration', default=100, type=int)
     parser.add_argument('--gamma', help='Discount factor of GAE', default=0.99, type=float)
     parser.add_argument('--lam', help='Lambda term of GAE', default=0.95, type=int)
     parser.add_argument('--adam_epsilon', help='Optimal step size', default=1e-4, type=float)

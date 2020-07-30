@@ -298,6 +298,8 @@ def learn(env, model_path, data_path, policy_fn, model_learning_params, svm_grid
             pi.ob_rms.update(ob)  # update running mean/std for policy
         assign_old_eq_new()
 
+        pi.eps = pi.eps * gamma #reduce exploration
+
         # Optimizing the policy
         print("\nOptimizing policy !! \n")
         for opt in range(num_options):
