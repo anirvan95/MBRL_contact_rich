@@ -1,5 +1,5 @@
 <?xml version="0.0" ?>
-<robot name="wall1">
+<robot name="wall2">
 	<material name="blue">
         <color rgba="0.3 0.5 0.6 1"/>
     </material>
@@ -26,22 +26,22 @@
         </inertial>
 	</link>
 
-	<joint name="base_wl1" type="fixed">
-		<origin xyz="-0.025 1 1"/>
+	<joint name="base_wl2" type="fixed">
+		<origin xyz="0.75 -0.025 0.25"/>
 		<parent link="plane"/>
-		<child link="wl1"/>
+		<child link="wl2"/>
   	</joint>
 
-	<link name="wl1">
+	<link name="wl2">
 		<visual>
             <geometry>
-				<box size="0.05 2 2"/>
+				<box size="1.5 0.05 0.5"/>
 			</geometry>
             <material name="blue"/>
         </visual>
 		<collision>
 			<geometry>
-				<box size="0.05 2 2"/>
+				<box size="1.5 0.05 0.5"/>
 			</geometry>
 		</collision>
 		<inertial>

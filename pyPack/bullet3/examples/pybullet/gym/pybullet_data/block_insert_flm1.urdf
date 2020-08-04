@@ -1,7 +1,7 @@
 <?xml version="0.0" ?>
-<robot name="wall1">
+<robot name="slot1">
 	<material name="blue">
-        <color rgba="0.3 0.5 0.6 1"/>
+        <color rgba="0.3 0.5 0.6 0.9"/>
     </material>
 	<material name="grey">
         <color rgba="0.91 0.925 0.945 1"/>
@@ -26,26 +26,26 @@
         </inertial>
 	</link>
 
-	<joint name="base_wl1" type="fixed">
-		<origin xyz="-0.025 0.75 0.25"/>
+	<joint name="base_fl1" type="fixed">
+		<origin xyz="0.0 0.66 0.05"/>
 		<parent link="plane"/>
-		<child link="wl1"/>
+		<child link="fl1"/>
   	</joint>
 
-	<link name="wl1">
+	<link name="fl1">
 		<visual>
             <geometry>
-				<box size="0.05 1.5 0.5"/>
+				<box size="0.1 0.18 0.1"/>
 			</geometry>
             <material name="blue"/>
         </visual>
 		<collision>
 			<geometry>
-				<box size="0.05 1.5 2"/>
+				<box size="0.1 0.18 0.1"/>
 			</geometry>
 		</collision>
 		<inertial>
-			<mass value="3.0"/>
+			<mass value="2.0"/>
 			<inertia ixx="0.00833" ixy="0" ixz="0" iyy="0.00333" iyz="0" izz="0.00833"/>
 		</inertial>
 	</link>

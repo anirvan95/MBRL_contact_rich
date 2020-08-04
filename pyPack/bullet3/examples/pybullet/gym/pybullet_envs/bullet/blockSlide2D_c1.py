@@ -35,7 +35,7 @@ EXPONENT_SCALE = 10
 gForce = -4.9
 
 
-class BlockSlide2DEnv(gym.Env):
+class BlockSlide2DEnvC1(gym.Env):
     metadata = {'render.modes': ['human', 'rgb_array'], 'video.frames_per_second': 30}
 
     def __init__(self, render=False):
@@ -106,9 +106,11 @@ class BlockSlide2DEnv(gym.Env):
             self.wall_2 = p.loadURDF(os.path.join(pybullet_data.getDataPath(), "block_slide_w2.urdf"))
             p.changeDynamics(self.wall_2, 0, lateralFriction=0.001)
             p.changeDynamics(self.wall_2, 1, lateralFriction=0.001)
-            self.floor = p.loadURDF(os.path.join(pybullet_data.getDataPath(), "block_slide_w3.urdf"))
+            self.floor = p.loadURDF(os.path.join(pybullet_data.getDataPath(), "block_slide_wm3.urdf"))
             p.changeDynamics(self.floor, 0, lateralFriction=0.0001)
             p.changeDynamics(self.floor, 1, lateralFriction=0.0001)
+            p.changeDynamics(self.floor, 2, lateralFriction=0.0001)
+            p.changeDynamics(self.floor, 3, lateralFriction=0.3)
             self.block = p.loadURDF(os.path.join(pybullet_data.getDataPath(), "block3D.urdf"))
             p.changeDynamics(self.block, 0, lateralFriction=0.025)
             p.changeDynamics(self.block, 1, lateralFriction=0.025)

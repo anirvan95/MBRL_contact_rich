@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 # Change environment configuration here
 '''
 GOAL = np.array([0.15, 0.15])
-INIT = np.array([0.45, 0.55, 0.15])
+INIT = np.array([0.8, 0.15, 0.15])
 
 ACTION_SCALE = 2e-2
 STATE_SCALE = 3
@@ -35,7 +35,7 @@ EXPONENT_SCALE = 10
 gForce = -4.9
 
 
-class BlockSlide2DEnv(gym.Env):
+class BlockSlide2DEnvC2(gym.Env):
     metadata = {'render.modes': ['human', 'rgb_array'], 'video.frames_per_second': 30}
 
     def __init__(self, render=False):
@@ -114,7 +114,7 @@ class BlockSlide2DEnv(gym.Env):
             p.changeDynamics(self.block, 1, lateralFriction=0.025)
             p.changeDynamics(self.block, 2, lateralFriction=0.025)
             self.timeStep = 0.025
-            self.mode = 0
+            self.mode = 1
             p.setGravity(0, 0, 0)
             p.setTimeStep(self.timeStep)
             p.setRealTimeSimulation(0)

@@ -1,0 +1,126 @@
+<?xml version="0.0" ?>
+<robot name="floor">
+	<material name="blue">
+        <color rgba="0.3 0.5 0.6 1"/>
+    </material>
+	<material name="grey">
+        <color rgba="0.91 0.925 0.945 1"/>
+    </material>
+
+	<link name="plane">
+		<origin rpy="0 0 0" xyz="0 0 0.005"/>
+		<visual>
+            <geometry>
+                <box size="0 0 0.0"/>
+            </geometry>
+            <material name="grey"/>
+        </visual>
+        <collision>
+             <geometry>
+                <box size="0 0 0.0"/>
+            </geometry>
+        </collision>
+        <inertial>
+            <mass value="0"/>
+            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
+        </inertial>
+	</link>
+
+	<joint name="base_fl1" type="fixed">
+		<origin xyz="0.75 0.15 -0.025"/>
+		<parent link="plane"/>
+		<child link="fl1"/>
+  	</joint>
+
+	<link name="fl1">
+		<visual>
+            <geometry>
+				<box size="1.5 0.3 0.05"/>
+			</geometry>
+            <material name="blue"/>
+        </visual>
+		<collision>
+			<geometry>
+				<box size="1.5 0.3 0.05"/>
+			</geometry>
+		</collision>
+		<inertial>
+			<mass value="1.5"/>
+			<inertia ixx="0.00833" ixy="0" ixz="0" iyy="0.00333" iyz="0" izz="0.00833"/>
+		</inertial>
+	</link>
+
+	<joint name="base_fl2" type="fixed">
+		<origin xyz="0.895 0.6 -0.025"/>
+		<parent link="plane"/>
+		<child link="fl2"/>
+  	</joint>
+
+	<link name="fl2">
+		<visual>
+            <geometry>
+				<box size="1.21 0.6 0.05"/>
+			</geometry>
+            <material name="blue"/>
+        </visual>
+		<collision>
+			<geometry>
+				<box size="1.21 0.6 0.05"/>
+			</geometry>
+		</collision>
+		<inertial>
+			<mass value="2.2"/>
+			<inertia ixx="0.00833" ixy="0" ixz="0" iyy="0.00333" iyz="0" izz="0.00833"/>
+		</inertial>
+	</link>
+
+	<joint name="base_fl3" type="fixed">
+		<origin xyz="0.75 1.2 -0.025"/>
+		<parent link="plane"/>
+		<child link="fl3"/>
+  	</joint>
+
+	<link name="fl3">
+		<visual>
+            <geometry>
+				<box size="1.5 0.6 0.05"/>
+			</geometry>
+            <material name="blue"/>
+        </visual>
+		<collision>
+			<geometry>
+				<box size="1.5 0.6 0.05"/>
+			</geometry>
+		</collision>
+		<inertial>
+			<mass value="2.3"/>
+			<inertia ixx="0.00833" ixy="0" ixz="0" iyy="0.00333" iyz="0" izz="0.00833"/>
+		</inertial>
+	</link>
+
+	<joint name="base_fpatch" type="fixed">
+		<origin xyz="0.145 0.6 -0.025"/>
+		<parent link="plane"/>
+		<child link="fpatch"/>
+  	</joint>
+
+	<link name="fpatch">
+		<visual>
+            <geometry>
+				<box size="0.29 0.6 0.05"/>
+			</geometry>
+            <material name="grey"/>
+        </visual>
+		<collision>
+			<geometry>
+				<box size="0.29 0.6 0.05"/>
+			</geometry>
+		</collision>
+		<inertial>
+			<mass value="2.25"/>
+			<inertia ixx="0.00833" ixy="0" ixz="0" iyy="0.00333" iyz="0" izz="0.00833"/>
+		</inertial>
+	</link>
+
+
+</robot>

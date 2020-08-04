@@ -6,6 +6,10 @@ from pybullet_envs.bullet.racecarGymEnv import RacecarGymEnv
 from pybullet_envs.bullet.racecarZEDGymEnv import RacecarZEDGymEnv
 from pybullet_envs.bullet.kukaGymEnv import KukaGymEnv
 from pybullet_envs.bullet.kukaCamGymEnv import KukaCamGymEnv
-from pybullet_envs.bullet.block2D import Block2DEnv
-from pybullet_envs.bullet.block3D import Block3DEnv
+from pybullet_envs.bullet.blockInsert2D import BlockInsert2DEnv
+from pybullet_envs.bullet.blockInsert2D_c1 import BlockInsert2DEnvC1
+from pybullet_envs.bullet.blockInsert2D_c2 import BlockInsert2DEnvC2
 from pybullet_envs.bullet.blockSlide2D import BlockSlide2DEnv
+from pybullet_envs.bullet.blockSlide2D_c1 import BlockSlide2DEnvC1
+from pybullet_envs.bullet.blockSlide2D_c2 import BlockSlide2DEnvC2
+

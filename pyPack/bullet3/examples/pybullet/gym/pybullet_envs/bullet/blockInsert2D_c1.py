@@ -1,5 +1,5 @@
 """
-2D Block Sliding envirionment
+2D Block Insertion environment converted from Mujoco
 """
 import os, inspect
 
@@ -20,22 +20,18 @@ import pybullet_data
 import pybullet_utils.bullet_client as bc
 from pkg_resources import parse_version
 
-
 logger = logging.getLogger(__name__)
 
-'''
-# Change environment configuration here
-'''
-GOAL = np.array([0.15, 0.15])
-INIT = np.array([0.45, 0.55, 0.15])
+GOAL = np.array([0, 0.52])
+INIT = np.array([-0.3, 0.8])  # pos1
+# INIT = np.array([0.0, -0.1]) # pos2
 
-ACTION_SCALE = 2e-2
-STATE_SCALE = 3
+ACTION_SCALE = 1e-3
+STATE_SCALE = 4
 EXPONENT_SCALE = 10
-gForce = -4.9
 
 
-class BlockSlide2DEnv(gym.Env):
+class BlockInsert2DEnvC1(gym.Env):
     metadata = {'render.modes': ['human', 'rgb_array'], 'video.frames_per_second': 30}
 
     def __init__(self, render=False):
@@ -43,8 +39,8 @@ class BlockSlide2DEnv(gym.Env):
         self._render_height = 200
         self._render_width = 320
         self._physics_client_id = -1
-        actuator_bound_low = np.array([-15, -15])
-        actuator_bound_high = np.array([15, 15])
+        actuator_bound_low = np.array([-10, -10])
+        actuator_bound_high = np.array([10, 10])
         self.action_space = spaces.Box(low=actuator_bound_low, high=actuator_bound_high)
         observation_dim = 4
         state_bound_low = np.full(observation_dim, -float('inf'))
@@ -72,15 +68,15 @@ class BlockSlide2DEnv(gym.Env):
         forceY = action[1]
         p.setJointMotorControl2(self.block, 0, p.TORQUE_CONTROL, force=forceX)
         p.setJointMotorControl2(self.block, 1, p.TORQUE_CONTROL, force=forceY)
-        p.setJointMotorControl2(self.block, 2, p.TORQUE_CONTROL, force=gForce)
         p.stepSimulation()
-        self.state = [p.getJointState(self.block, 0)[0], p.getJointState(self.block, 1)[0], p.getJointState(self.block, 0)[1], p.getJointState(self.block, 1)[1]]
+        self.state = [p.getJointState(self.block, 0)[0], p.getJointState(self.block, 1)[0],
+                      p.getJointState(self.block, 0)[1], p.getJointState(self.block, 1)[1]]
         done = False
         pos = self.state[0:2]
         dist = pos - GOAL
         reward_dist = -STATE_SCALE * np.linalg.norm(dist)
         reward_ctrl = -ACTION_SCALE * np.square(action).sum()
-        reward = EXPONENT_SCALE*np.exp(reward_dist + reward_ctrl)
+        reward = reward_dist + reward_ctrl
 
         return np.array(self.state), reward, done, {}
 
@@ -93,26 +89,18 @@ class BlockSlide2DEnv(gym.Env):
             self.initConnection = False
             if self._renders:
                 self._p = bc.BulletClient(connection_mode=p2.GUI)
+
             else:
                 self._p = bc.BulletClient()
             self._physics_client_id = self._p._client
 
             p = self._p
+            p.resetDebugVisualizerCamera(cameraDistance=2.12, cameraYaw=273.6, cameraPitch=-54.4, cameraTargetPosition=[0.41, 0.31, -0.73])
             p.resetSimulation()
-            p.resetDebugVisualizerCamera(cameraDistance=3.78, cameraYaw=134.0, cameraPitch=-45.8, cameraTargetPosition=[0.03, -0.04, 0.03])
-            self.wall_1 = p.loadURDF(os.path.join(pybullet_data.getDataPath(), "block_slide_w1.urdf"))
-            p.changeDynamics(self.wall_1, 0, lateralFriction=0.001)
-            p.changeDynamics(self.wall_1, 1, lateralFriction=0.001)
-            self.wall_2 = p.loadURDF(os.path.join(pybullet_data.getDataPath(), "block_slide_w2.urdf"))
-            p.changeDynamics(self.wall_2, 0, lateralFriction=0.001)
-            p.changeDynamics(self.wall_2, 1, lateralFriction=0.001)
-            self.floor = p.loadURDF(os.path.join(pybullet_data.getDataPath(), "block_slide_w3.urdf"))
-            p.changeDynamics(self.floor, 0, lateralFriction=0.0001)
-            p.changeDynamics(self.floor, 1, lateralFriction=0.0001)
-            self.block = p.loadURDF(os.path.join(pybullet_data.getDataPath(), "block3D.urdf"))
-            p.changeDynamics(self.block, 0, lateralFriction=0.025)
-            p.changeDynamics(self.block, 1, lateralFriction=0.025)
-            p.changeDynamics(self.block, 2, lateralFriction=0.025)
+            self.slot_1 = p.loadURDF(os.path.join(pybullet_data.getDataPath(), "block_insert_flm1.urdf"))
+            self.slot_2 = p.loadURDF(os.path.join(pybullet_data.getDataPath(), "block_insert_flm2.urdf"))
+            self.slot_3 = p.loadURDF(os.path.join(pybullet_data.getDataPath(), "block_insert_fl3.urdf"))
+            self.block = p.loadURDF(os.path.join(pybullet_data.getDataPath(), "block.urdf"))
             self.timeStep = 0.025
             self.mode = 0
             p.setGravity(0, 0, 0)
@@ -120,13 +108,12 @@ class BlockSlide2DEnv(gym.Env):
             p.setRealTimeSimulation(0)
             p.setJointMotorControl2(self.block, 0, p.VELOCITY_CONTROL, force=0)
             p.setJointMotorControl2(self.block, 1, p.VELOCITY_CONTROL, force=0)
-            p.setJointMotorControl2(self.block, 2, p.VELOCITY_CONTROL, force=0)
 
         p = self._p
         p.resetJointState(self.block, 0, INIT[0], 0)
         p.resetJointState(self.block, 1, INIT[1], 0)
-        p.resetJointState(self.block, 2, INIT[2], 0)
-        self.state = [p.getJointState(self.block, 0)[0], p.getJointState(self.block, 1)[0], p.getJointState(self.block, 0)[1], p.getJointState(self.block, 1)[1]]
+        self.state = [p.getJointState(self.block, 0)[0], p.getJointState(self.block, 1)[0],
+                      p.getJointState(self.block, 0)[1], p.getJointState(self.block, 1)[1]]
 
         return np.array(self.state)
 
@@ -165,7 +152,6 @@ class BlockSlide2DEnv(gym.Env):
 
     def getContactForce(self):
         contactInfo = self._p.getContactPoints(self.block)
-        #print(contactInfo)
         dirX = np.array([1, 0, 0])
         dirY = np.array([0, 1, 0])
         dirZ = np.array([0, 0, 1])

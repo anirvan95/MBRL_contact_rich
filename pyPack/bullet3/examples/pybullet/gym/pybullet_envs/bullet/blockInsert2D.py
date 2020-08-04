@@ -28,11 +28,11 @@ INIT = np.array([-0.3, 0.8])  # pos1
 # INIT = np.array([0.5, 0.3]) # pos3
 
 ACTION_SCALE = 1e-3
-# ACTION_SCALE = 1e-5
-STATE_SCALE = 10
+STATE_SCALE = 4
+EXPONENT_SCALE = 10
 
 
-class Block2DEnv(gym.Env):
+class BlockInsert2DEnv(gym.Env):
     metadata = {'render.modes': ['human', 'rgb_array'], 'video.frames_per_second': 30}
 
     def __init__(self, render=False):
@@ -78,6 +78,7 @@ class Block2DEnv(gym.Env):
         reward_dist = -STATE_SCALE * np.linalg.norm(dist)
         reward_ctrl = -ACTION_SCALE * np.square(action).sum()
         reward = reward_dist + reward_ctrl
+        reward = EXPONENT_SCALE * np.exp(reward_dist + reward_ctrl)
 
         return np.array(self.state), reward, done, {}
 
@@ -90,17 +91,20 @@ class Block2DEnv(gym.Env):
             self.initConnection = False
             if self._renders:
                 self._p = bc.BulletClient(connection_mode=p2.GUI)
+
             else:
                 self._p = bc.BulletClient()
             self._physics_client_id = self._p._client
 
             p = self._p
+            p.resetDebugVisualizerCamera(cameraDistance=2.12, cameraYaw=273.6, cameraPitch=-54.4, cameraTargetPosition=[0.41, 0.31, -0.73])
             p.resetSimulation()
             self.slot_1 = p.loadURDF(os.path.join(pybullet_data.getDataPath(), "block_insert_fl1.urdf"))
             self.slot_2 = p.loadURDF(os.path.join(pybullet_data.getDataPath(), "block_insert_fl2.urdf"))
             self.slot_3 = p.loadURDF(os.path.join(pybullet_data.getDataPath(), "block_insert_fl3.urdf"))
             self.block = p.loadURDF(os.path.join(pybullet_data.getDataPath(), "block.urdf"))
-            self.timeStep = 0.01
+            self.timeStep = 0.025
+            self.mode = 0
             p.setGravity(0, 0, 0)
             p.setTimeStep(self.timeStep)
             p.setRealTimeSimulation(0)
@@ -194,4 +198,4 @@ class Block2DEnv(gym.Env):
             cFy = 0.0 if math.isnan(cFy) else cFy
             cFz = 0.0 if math.isnan(cFz) else cFz
 
-        return np.array([nFx+cFx, nFy+cFy])
+        return np.array([nFx, nFy, nFz, cFx, cFy, cFz])

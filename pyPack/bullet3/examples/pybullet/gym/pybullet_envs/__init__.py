@@ -38,16 +38,40 @@ register(
     max_episode_steps=200,
     reward_threshold=190.0,
 )
+# ------------Experimental registration-------------
+register(
+    id='BlockInsert2D-v1',
+    entry_point='pybullet_envs.bullet:BlockInsert2DEnv',
+    max_episode_steps=1000,
+)
 
 register(
-    id='Block2D-v2',
-    entry_point='pybullet_envs.bullet:Block2DEnv',
+    id='BlockInsert2Dc-v1',
+    entry_point='pybullet_envs.bullet:BlockInsert2DEnvC1',
+    max_episode_steps=1000,
+)
+
+register(
+    id='BlockInsert2Dc-v2',
+    entry_point='pybullet_envs.bullet:BlockInsert2DEnvC2',
     max_episode_steps=1000,
 )
 
 register(
     id='BlockSlide2D-v1',
     entry_point='pybullet_envs.bullet:BlockSlide2DEnv',
+    max_episode_steps=1000,
+)
+
+register(
+    id='BlockSlide2Dc-v1',
+    entry_point='pybullet_envs.bullet:BlockSlide2DEnvC1',
+    max_episode_steps=1000,
+)
+
+register(
+    id='BlockSlide2Dc-v2',
+    entry_point='pybullet_envs.bullet:BlockSlide2DEnvC2',
     max_episode_steps=1000,
 )
 
