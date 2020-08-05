@@ -268,7 +268,10 @@ def learn(env, model_path, data_path, policy_fn, model_learning_params, svm_grid
 
         logger.log("************* Iteration %i *************" % iters_so_far)
         print("Collecting samples for policy optimization !! ")
-        render = False
+        if iters_so_far > 70:
+            render = True
+        else:
+            render = False
         rollouts = sample_trajectory(pi, model, env, iters_so_far, horizon=horizon, rolloutSize=rolloutSize, render=render)
 
         # Model update

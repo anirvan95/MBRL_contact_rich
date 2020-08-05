@@ -23,13 +23,13 @@ from pkg_resources import parse_version
 logger = logging.getLogger(__name__)
 
 GOAL = np.array([0, 0.5])  # change here
-INIT = np.array([-0.3, 0.8])  # pos1
+INIT = np.array([-0.25, 0.65])  # pos1
 # INIT = np.array([0.0, -0.1]) # pos2
 # INIT = np.array([0.5, 0.3]) # pos3
 
 ACTION_SCALE = 1e-3
-STATE_SCALE = 4
-EXPONENT_SCALE = 10
+STATE_SCALE = 10
+EXPONENT_SCALE = 20
 
 
 class BlockInsert2DEnv(gym.Env):
@@ -78,7 +78,7 @@ class BlockInsert2DEnv(gym.Env):
         reward_dist = -STATE_SCALE * np.linalg.norm(dist)
         reward_ctrl = -ACTION_SCALE * np.square(action).sum()
         reward = reward_dist + reward_ctrl
-        reward = EXPONENT_SCALE * np.exp(reward_dist + reward_ctrl)
+        #reward = EXPONENT_SCALE * np.exp(reward_dist + reward_ctrl)
 
         return np.array(self.state), reward, done, {}
 

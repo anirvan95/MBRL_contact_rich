@@ -43,8 +43,8 @@ class BlockSlide2DEnvC1(gym.Env):
         self._render_height = 200
         self._render_width = 320
         self._physics_client_id = -1
-        actuator_bound_low = np.array([-15, -15])
-        actuator_bound_high = np.array([15, 15])
+        actuator_bound_low = np.array([-10, -10])
+        actuator_bound_high = np.array([10, 10])
         self.action_space = spaces.Box(low=actuator_bound_low, high=actuator_bound_high)
         observation_dim = 4
         state_bound_low = np.full(observation_dim, -float('inf'))
@@ -72,7 +72,7 @@ class BlockSlide2DEnvC1(gym.Env):
         forceY = action[1]
         p.setJointMotorControl2(self.block, 0, p.TORQUE_CONTROL, force=forceX)
         p.setJointMotorControl2(self.block, 1, p.TORQUE_CONTROL, force=forceY)
-        p.setJointMotorControl2(self.block, 2, p.TORQUE_CONTROL, force=gForce)
+        p.setJointMotorControl2(self.block, 2, p.TORQUE_CONTROL, force=-4.9)
         p.stepSimulation()
         self.state = [p.getJointState(self.block, 0)[0], p.getJointState(self.block, 1)[0], p.getJointState(self.block, 0)[1], p.getJointState(self.block, 1)[1]]
         done = False
@@ -101,20 +101,21 @@ class BlockSlide2DEnvC1(gym.Env):
             p.resetSimulation()
             p.resetDebugVisualizerCamera(cameraDistance=3.78, cameraYaw=134.0, cameraPitch=-45.8, cameraTargetPosition=[0.03, -0.04, 0.03])
             self.wall_1 = p.loadURDF(os.path.join(pybullet_data.getDataPath(), "block_slide_w1.urdf"))
-            p.changeDynamics(self.wall_1, 0, lateralFriction=0.001)
-            p.changeDynamics(self.wall_1, 1, lateralFriction=0.001)
+            p.changeDynamics(self.wall_1, 0, lateralFriction=0.01)
+            p.changeDynamics(self.wall_1, 1, lateralFriction=0.01)
             self.wall_2 = p.loadURDF(os.path.join(pybullet_data.getDataPath(), "block_slide_w2.urdf"))
-            p.changeDynamics(self.wall_2, 0, lateralFriction=0.001)
-            p.changeDynamics(self.wall_2, 1, lateralFriction=0.001)
+            p.changeDynamics(self.wall_2, 0, lateralFriction=0.01)
+            p.changeDynamics(self.wall_2, 1, lateralFriction=0.01)
             self.floor = p.loadURDF(os.path.join(pybullet_data.getDataPath(), "block_slide_wm3.urdf"))
-            p.changeDynamics(self.floor, 0, lateralFriction=0.0001)
-            p.changeDynamics(self.floor, 1, lateralFriction=0.0001)
-            p.changeDynamics(self.floor, 2, lateralFriction=0.0001)
-            p.changeDynamics(self.floor, 3, lateralFriction=0.3)
+            p.changeDynamics(self.floor, 0, lateralFriction=0.01)
+            p.changeDynamics(self.floor, 1, lateralFriction=0.01)
+            p.changeDynamics(self.floor, 2, lateralFriction=0.01)
+            p.changeDynamics(self.floor, 3, lateralFriction=0.8)
+            #print(p.getDynamicsInfo(self.floor, 3))
             self.block = p.loadURDF(os.path.join(pybullet_data.getDataPath(), "block3D.urdf"))
-            p.changeDynamics(self.block, 0, lateralFriction=0.025)
-            p.changeDynamics(self.block, 1, lateralFriction=0.025)
-            p.changeDynamics(self.block, 2, lateralFriction=0.025)
+            p.changeDynamics(self.block, 0, lateralFriction=0.55)
+            p.changeDynamics(self.block, 1, lateralFriction=0.55)
+            p.changeDynamics(self.block, 2, lateralFriction=0.55)
             self.timeStep = 0.025
             self.mode = 0
             p.setGravity(0, 0, 0)

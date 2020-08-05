@@ -30,7 +30,7 @@
             <origin xyz="0.0 0.0 0.05"/>
             <parent link="plane"/>
             <child link="hinge"/>
-            <dynamics damping="1.0" friction="0.0001"/>
+            <dynamics damping="0.5" friction="0.0001"/>
             <axis xyz="1.0 0.0 0.0"/>
             <limit effort="1000.0" lower="-10.0" upper="10.0" velocity="5.0"/>
       </joint>
@@ -58,7 +58,7 @@
           <origin xyz="0.0 0.0 0.0"/>
           <parent link="hinge"/>
           <child link="block"/>
-          <dynamics damping="1.0" friction="0.0001"/>
+          <dynamics damping="0.5" friction="0.0001"/>
           <axis xyz="0.0 1.0 0.0"/>
           <limit effort="1000.0" lower="-10.0" upper="10.0" velocity="5.0"/>
       </joint>
@@ -67,13 +67,13 @@
           <origin xyz="0.0 0.0 0.0"/>
           <visual>
               <geometry>
-                  <box size="0.1 0.096 0.1"/>
+                  <box size="0.1 0.095 0.1"/>
               </geometry>
               <material name="red"/>
           </visual>
           <collision>
               <geometry>
-                  <box size="0.1 0.096 0.1"/>
+                  <box size="0.1 0.095 0.1"/>
               </geometry>
           </collision>
           <inertial>
