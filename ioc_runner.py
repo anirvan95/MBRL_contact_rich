@@ -1,5 +1,4 @@
 import tensorflow.compat.v1 as tf
-from common.clustering_utils import hybridSegmentClustering
 from common.dataset import Dataset
 import logger
 import common.tf_util as U
@@ -14,30 +13,26 @@ import pickle
 tf.disable_v2_behavior()
 
 
-def traj_segment_generator(pi, env, batchSize, horizon, stochastic, num_options, dc):
-    GOAL = np.array([0, 0.52])
+def sample_trajectory(pi, env, horizon=150, rolloutSize=50, render=False):
     ac = env.action_space.sample()  # not used, just so we have the datatype
     new = True  # marks if we're on first timestep of an episode
     ob = env.reset()
-
-    t = 0
-    first_ep = True
-
+    num_options = pi.num_options
     cur_ep_ret = 0  # return in current episode
     cur_ep_len = 0  # len of current episode
     ep_rets = []  # returns of completed episodes in this segment
     ep_lens = []  # lengths of ...
-
+    batch_size = int(horizon * rolloutSize)
     # Initialize history arrays
-    obs = np.array([ob for _ in range(batchSize)])
-    rews = np.zeros(batchSize, 'float32')
-    realrews = np.zeros(batchSize, 'float32')
-    news = np.zeros(batchSize, 'int32')
-    opts = np.zeros(batchSize, 'int32')
-    activated_options = np.zeros((batchSize, num_options), 'float32')
+    obs = np.array([ob for _ in range(batch_size)])
+    rews = np.zeros(batch_size, 'float32')
+    realrews = np.zeros(batch_size, 'float32')
+    news = np.zeros(batch_size, 'int32')
+    opts = np.zeros(batch_size, 'int32')
+    activated_options = np.zeros((batch_size, num_options), 'float32')
 
-    last_options = np.zeros(batchSize, 'int32')
-    acs = np.array([ac for _ in range(batchSize)])
+    last_options = np.zeros(batch_size, 'int32')
+    acs = np.array([ac for _ in range(batch_size)])
     prevacs = acs.copy()
 
     option, active_options_t = pi.get_option(ob)
@@ -59,26 +54,25 @@ def traj_segment_generator(pi, env, batchSize, horizon, stochastic, num_options,
     ep_num = 0
 
     opt_duration = [[] for _ in range(num_options)]
-
+    sample_index = 0
     curr_opt_duration = 0.
 
-    insertion = 0
-    new_rollout = True
+    success = 0
+    successFlag = False
 
-    while t < batchSize:
+    while sample_index < batch_size:
         prevac = ac
-        ac = pi.act(stochastic, ob, option)
-        obs[t] = ob
-        last_options[t] = last_option
-        news[t] = new
-        opts[t] = option
-        acs[t] = ac
-        prevacs[t] = prevac
-        activated_options[t] = active_options_t
+        ac = pi.act(True, ob, option)
+        obs[sample_index] = ob
+        last_options[sample_index] = last_option
+        news[sample_index] = new
+        opts[sample_index] = option
+        acs[sample_index] = ac
+        prevacs[sample_index] = prevac
+        activated_options[sample_index] = active_options_t
 
         ob, rew, new, _ = env.step(ac)
-        rews[t] = rew
-        realrews[t] = rew
+        rews[sample_index] = rew
 
         curr_opt_duration += 1
         term = pi.get_term([ob], [option])[0][0]
@@ -86,7 +80,7 @@ def traj_segment_generator(pi, env, batchSize, horizon, stochastic, num_options,
         candidate_option, active_options_t = pi.get_option(ob)
         if term:
             if num_options > 1:
-                rews[t] -= dc
+                rews[sample_index] -= pi.dc
             opt_duration[option].append(curr_opt_duration)
             curr_opt_duration = 0.
             last_option = option
@@ -100,12 +94,15 @@ def traj_segment_generator(pi, env, batchSize, horizon, stochastic, num_options,
         cur_ep_ret += rew
         cur_ep_len += 1
 
-        dist = ob[:2] - GOAL
-        if np.linalg.norm(dist) < 0.025 and new_rollout:
-            insertion = insertion + 1
-            new_rollout = False
+        dist = env.getGoalDist()
+        if np.linalg.norm(dist) < 0.005 and not successFlag:
+            success = success + 1
+            successFlag = True
 
-        if new or (t > 0 and t % horizon == 0):
+        sample_index += 1
+
+        if new or (sample_index > 0 and sample_index % horizon == 0):
+            render = False
             opt_duration[option].append(curr_opt_duration)
             curr_opt_duration = 0.
             ep_rets.append(cur_ep_ret)
@@ -117,51 +114,48 @@ def traj_segment_generator(pi, env, batchSize, horizon, stochastic, num_options,
             option, active_options_t = pi.get_option(ob)
             last_option = option
             new = True
-            new_rollout = True
-
+            successFlag = False
             term_prob = pi.get_tpred([ob], [option])[0][0]
-
-        t += 1
 
     vpreds, op_vpreds, vpred, op_vpred, op_probs, intfc = pi.get_allvpreds(obs, ob)
     term_ps, term_p = pi.get_alltpreds(obs, ob)
     last_betas = term_ps[range(len(last_options)), last_options]
     print("\n Maximum Reward this iteration: ", max(ep_rets), " \n")
-    seg =  {"ob": obs, "rew": rews, "realrew": realrews, "vpred": vpreds, "op_vpred": op_vpreds, "new": news,
+    rollouts = {"ob": obs, "rew": rews, "vpred": vpreds, "op_vpred": op_vpreds, "new": news,
            "ac": acs, "opts": opts, "prevac": prevacs, "nextvpred": vpred * (1 - new),
            "nextop_vpred": op_vpred * (1 - new),
            "ep_rets": ep_rets, "ep_lens": ep_lens, 'term_p': term_ps, 'next_term_p': term_p,
            "opt_dur": opt_duration, "op_probs": op_probs, "last_betas": last_betas, "intfc": intfc,
-           "activated_options": activated_options, "success": insertion}
+           "activated_options": activated_options, "success": success}
 
-    return seg
+    return rollouts
 
 
-def add_vtarg_and_adv(seg, gamma, lam, num_options):
+def add_vtarg_and_adv(rollouts, gamma, lam, num_options):
     """
     Compute target value using TD(lambda) estimator, and advantage with GAE(lambda)
     """
-    new = np.append(seg["new"], 0)  # last element is only used for last vtarg, but we already zeroed it if last new = 1
-    op_vpred = np.append(seg["op_vpred"], seg["nextop_vpred"])
-    T = len(seg["rew"])
-    seg["op_adv"] = gaelam = np.empty(T, 'float32')
-    rew = seg["rew"]
+    new = np.append(rollouts["new"], 0)  # last element is only used for last vtarg, but we already zeroed it if last new = 1
+    op_vpred = np.append(rollouts["op_vpred"], rollouts["nextop_vpred"])
+    T = len(rollouts["rew"])
+    rollouts["op_adv"] = gaelam = np.empty(T, 'float32')
+    rew = rollouts["rew"]
     lastgaelam = 0
     for t in reversed(range(T)):
         nonterminal = 1 - new[t + 1]
         delta = rew[t] + gamma * op_vpred[t + 1] * nonterminal - op_vpred[t]
         gaelam[t] = lastgaelam = delta + gamma * lam * nonterminal * lastgaelam
 
-    seg["op_adv"] = gaelam
+    rollouts["op_adv"] = gaelam
 
-    term_p = np.vstack((np.array(seg["term_p"]), np.array(seg["next_term_p"])))
-    q_sw = np.vstack((seg["vpred"], seg["nextvpred"]))
+    term_p = np.vstack((np.array(rollouts["term_p"]), np.array(rollouts["next_term_p"])))
+    q_sw = np.vstack((rollouts["vpred"], rollouts["nextvpred"]))
     u_sw = (1 - term_p) * q_sw + term_p * np.tile(op_vpred[:, None], num_options)
-    opts = seg["opts"]
+    opts = rollouts["opts"]
 
-    new = np.append(seg["new"], 0)  # last element is only used for last vtarg, but we already zeroed it if last new = 1
-    T = len(seg["rew"])
-    rew = seg["rew"]
+    new = np.append(rollouts["new"], 0)  # last element is only used for last vtarg, but we already zeroed it if last new = 1
+    T = len(rollouts["rew"])
+    rew = rollouts["rew"]
     gaelam = np.empty((num_options, T), 'float32')
     for opt in range(num_options):
         vpred = u_sw[:, opt]
@@ -171,39 +165,27 @@ def add_vtarg_and_adv(seg, gamma, lam, num_options):
             delta = rew[t] + gamma * vpred[t + 1] * nonterminal - vpred[t]
             gaelam[opt, t] = lastgaelam = delta + gamma * lam * nonterminal * lastgaelam
 
-    seg["adv"] = gaelam.T[range(len(opts)), opts]
+    rollouts["adv"] = gaelam.T[range(len(opts)), opts]
+    rollouts["tdlamret"] = rollouts["adv"] + u_sw[range(len(opts)), opts]
 
-    seg["tdlamret"] = seg["adv"] + u_sw[range(len(opts)), opts]
 
-
-def learn(env, model_path, policy_func, *,
-          batchSize, horizon,
-          clip_param, entcoeff,  # clipping parameter epsilon, entropy coeff
-          optim_epochs, optim_stepsize, optim_batchsize,  # optimization hypers
-          gamma, lam,  # advantage estimation
-          max_timesteps=0, max_episodes=0, max_iters=0, max_seconds=0,  # time constraint
-          callback=None,  # you can do anything in the callback, since it takes locals(), globals()
+def learn(env, model_path, data_path, policy_fn, *,
+          rolloutSize, num_options=4, horizon=80,
+          clip_param=0.025, ent_coeff=0.01,  # clipping parameter epsilon, entropy coeff
+          optim_epochs=10, mainlr=3.25e-4, intlr=1e-4, piolr=1e-4, termlr=5e-7, optim_batchsize=100,  # optimization hypers
+          gamma=0.99, lam=0.95,  # advantage estimation
+          max_iters=20,  # time constraint
           adam_epsilon=1e-5,
           schedule='constant',  # annealing for stepsize parameters (epsilon and adam)
           retrain=False,
-          num_options=1,
-          app='',
-          saves=False,
-          wsaves=False,
-          epoch=0,
-          seed=1,
-          dc=0, plots=False, w_intfc=True, switch=False, intlr=1e-4, piolr=1e-4, fewshot=False, k=0.,
           ):
-    optim_batchsize_ideal = optim_batchsize
-    np.random.seed(seed)
-    tf.set_random_seed(seed)
-
-    # Setup losses and stuff
-    # ----------------------------------------
+    """
+        Core learning function
+    """
     ob_space = env.observation_space
     ac_space = env.action_space
-    pi = policy_func("pi", ob_space, ac_space)  # Construct network for new policy
-    oldpi = policy_func("oldpi", ob_space, ac_space)  # Network for old policy
+    pi = policy_fn("pi", ob_space, ac_space, num_options=num_options)  # Construct network for new policy
+    oldpi = policy_fn("oldpi", ob_space, ac_space, num_options=num_options)  # Network for old policy
     atarg = tf.placeholder(dtype=tf.float32, shape=[None])  # Target advantage function (if applicable)
     ret = tf.placeholder(dtype=tf.float32, shape=[None])  # Empirical return
 
@@ -219,11 +201,12 @@ def learn(env, model_path, policy_func, *,
 
     ac = pi.pdtype.sample_placeholder([None])
 
+    # Setup losses and stuff
     kloldnew = oldpi.pd.kl(pi.pd)
     ent = pi.pd.entropy()
     meankl = tf.reduce_mean(kloldnew)
     meanent = tf.reduce_mean(ent)
-    pol_entpen = (-entcoeff) * meanent
+    pol_entpen = (-ent_coeff) * meanent
 
     ratio = tf.exp(pi.pd.logp(ac) - oldpi.pd.logp(ac))  # pnew / pold
     surr1 = ratio * atarg  # surrogate from conservative policy iteration
@@ -257,7 +240,6 @@ def learn(env, model_path, policy_func, *,
 
     var_list = pi.get_trainable_variables()
     lossandgrad = U.function([ob, ac, atarg, ret, lrmult, option], losses + [U.flatgrad(total_loss, var_list)])
-    lossandgrad_vf = U.function([ob, ac, atarg, ret, lrmult, option], losses + [U.flatgrad(vf_loss, var_list)])
     termgrad = U.function([ob, option, term_adv],
                           [U.flatgrad(term_loss, var_list)])  # Since we will use a different step size.
     opgrad = U.function([ob, option, betas, op_adv, intfc, activated_options],
@@ -284,22 +266,15 @@ def learn(env, model_path, policy_func, *,
 
     datas = [0 for _ in range(num_options)]
 
-    if retrain == True:
-        print("Retraining to New Goal")
+    if retrain:
+        print("Retraining to New Task !! ")
         time.sleep(2)
         U.load_state(model_path)
 
     p = []
-
+    max_timesteps = int(horizon * rolloutSize * max_iters)
     while True:
-        if callback: callback(locals(), globals())
-        if max_timesteps and timesteps_so_far >= max_timesteps:
-            break
-        elif max_episodes and episodes_so_far >= max_episodes:
-            break
-        elif max_iters and iters_so_far >= max_iters:
-            break
-        elif max_seconds and time.time() - tstart >= max_seconds:
+        if max_iters and iters_so_far >= max_iters:
             break
 
         if schedule == 'constant':
@@ -311,119 +286,68 @@ def learn(env, model_path, policy_func, *,
 
         logger.log("********** Iteration %i ************" % iters_so_far)
 
-        seg = traj_segment_generator(pi, env, batchSize=batchSize, horizon=horizon, stochastic=True, num_options=2, dc=dc)
+        rollouts = sample_trajectory(pi, env, horizon=150, rolloutSize=50, render=False)
 
-        add_vtarg_and_adv(seg, gamma, lam, num_options)
+        add_vtarg_and_adv(rollouts, gamma, lam, num_options)
 
         opt_d = []
         for i in range(num_options):
-            dur = np.mean(seg['opt_dur'][i]) if len(seg['opt_dur'][i]) > 0 else 0.
+            dur = np.mean(rollouts['opt_dur'][i]) if len(rollouts['opt_dur'][i]) > 0 else 0.
             opt_d.append(dur)
-        '''
-        print("mean opt dur:", opt_d)
-        print("mean op probs:", np.mean(np.array(seg['op_probs']), axis=0))
-        print("mean term p:", np.mean(np.array(seg['term_p']), axis=0))
-        print("mean vpreds:", np.mean(np.array(seg['vpred']), axis=0))
-        '''
-        ob, ac, opts, atarg, tdlamret = seg["ob"], seg["ac"], seg["opts"], seg["adv"], seg["tdlamret"]
-        vpredbefore = seg["vpred"]  # predicted value function before udpate
+
+        ob, ac, opts, atarg, tdlamret = rollouts["ob"], rollouts["ac"], rollouts["opts"], rollouts["adv"], rollouts["tdlamret"]
+        vpredbefore = rollouts["vpred"]  # predicted value function before udpate
         atarg = (atarg - atarg.mean()) / atarg.std()  # standardized advantage function estimate
 
         if hasattr(pi, "ob_rms"): pi.ob_rms.update(ob)  # update running mean/std for policy
         assign_old_eq_new()  # set old parameter values to new parameter values
 
-        min_batch = 32  # Arbitrary
-        t_advs = [[] for _ in range(num_options)]
+        # Optimizing the policy
         for opt in range(num_options):
             indices = np.where(opts == opt)[0]
-            print("batch size:", indices.size)
+            print("Option- ", opt, " Batch Size: ", indices.size)
             opt_d[opt] = indices.size
             if not indices.size:
-                t_advs[opt].append(0.)
                 continue
 
-            ########## This part is only necessary when we use options. We proceed to these verifications in order not to discard any collected trajectories.
-            if datas[opt] != 0:
-                if (indices.size < min_batch and datas[opt].n > min_batch):
-                    datas[opt] = Dataset(
-                        dict(ob=ob[indices], ac=ac[indices], atarg=atarg[indices], vtarg=tdlamret[indices]),
-                        shuffle=not pi.recurrent)
-                    t_advs[opt].append(0.)
-                    continue
+            datas[opt] = d = Dataset(dict(ob=ob[indices], ac=ac[indices], atarg=atarg[indices], vtarg=tdlamret[indices]), shuffle=not pi.recurrent)
 
-                elif indices.size + datas[opt].n < min_batch:
-                    oldmap = datas[opt].data_map
+            if indices.size < optim_batchsize:
+                print("Too few samples for opt - ", opt)
+                continue
 
-                    cat_ob = np.concatenate((oldmap['ob'], ob[indices]))
-                    cat_ac = np.concatenate((oldmap['ac'], ac[indices]))
-                    cat_atarg = np.concatenate((oldmap['atarg'], atarg[indices]))
-                    cat_vtarg = np.concatenate((oldmap['vtarg'], tdlamret[indices]))
-                    datas[opt] = Dataset(dict(ob=cat_ob, ac=cat_ac, atarg=cat_atarg, vtarg=cat_vtarg),
-                                         shuffle=not pi.recurrent)
-                    t_advs[opt].append(0.)
-                    continue
-
-                elif (indices.size + datas[opt].n > min_batch and datas[opt].n < min_batch) or (
-                        indices.size > min_batch and datas[opt].n < min_batch):
-
-                    oldmap = datas[opt].data_map
-                    cat_ob = np.concatenate((oldmap['ob'], ob[indices]))
-                    cat_ac = np.concatenate((oldmap['ac'], ac[indices]))
-                    cat_atarg = np.concatenate((oldmap['atarg'], atarg[indices]))
-                    cat_vtarg = np.concatenate((oldmap['vtarg'], tdlamret[indices]))
-                    datas[opt] = d = Dataset(dict(ob=cat_ob, ac=cat_ac, atarg=cat_atarg, vtarg=cat_vtarg),
-                                             shuffle=not pi.recurrent)
-
-                if (indices.size > min_batch and datas[opt].n > min_batch):
-                    datas[opt] = d = Dataset(
-                        dict(ob=ob[indices], ac=ac[indices], atarg=atarg[indices], vtarg=tdlamret[indices]),
-                        shuffle=not pi.recurrent)
-
-            elif datas[opt] == 0:
-                datas[opt] = d = Dataset(
-                    dict(ob=ob[indices], ac=ac[indices], atarg=atarg[indices], vtarg=tdlamret[indices]),
-                    shuffle=not pi.recurrent)
-            #########
-
-            optim_batchsize_corrected = optim_batchsize or ob.shape[0]
-            optim_epochs_corrected = np.clip(np.int(indices.size / optim_batchsize_corrected), 1,  optim_epochs)
-            print("optim epochs:", optim_epochs)
+            optim_batchsize_corrected = optim_batchsize
+            optim_epochs_corrected = np.clip(np.int(indices.size / optim_batchsize_corrected), 1, optim_epochs)
+            print("Optim Epochs:", optim_epochs_corrected)
             logger.log("Optimizing...")
-
             # Here we do a bunch of optimization epochs over the data
+
             for _ in range(optim_epochs_corrected):
                 losses = []  # list of tuples, each of which gives the loss for a minibatch
                 for batch in d.iterate_once(optim_batchsize_corrected):
-                    if iters_so_far < 150 or not fewshot:
-                        *newlosses, grads = lossandgrad(batch["ob"], batch["ac"], batch["atarg"], batch["vtarg"],
-                                                        cur_lrmult, [opt])
-                        adam.update(grads, optim_stepsize * cur_lrmult)
-                        losses.append(newlosses)
-                    else:
-                        *newlosses, grads = lossandgrad_vf(batch["ob"], batch["ac"], batch["atarg"], batch["vtarg"],
-                                                           cur_lrmult, [opt])
-                        adam.update(grads, optim_stepsize * cur_lrmult)
-                        losses.append(newlosses)
+                    *newlosses, grads = lossandgrad(batch["ob"], batch["ac"], batch["atarg"], batch["vtarg"],
+                                                    cur_lrmult, [opt])
+                    adam.update(grads, mainlr * cur_lrmult)
+                    losses.append(newlosses)
 
-        if iters_so_far < 150 or not fewshot:
-            termg = termgrad(seg["ob"], seg['opts'], seg["op_adv"])[0]
-            adam.update(termg, 5e-7)
+            # Optimize termination functions
+            termg = termgrad(rollouts["ob"], rollouts['opts'], rollouts["op_adv"])[0]
+            adam.update(termg, termlr)
 
-            if w_intfc:
-                intgrads = intgrad(seg['ob'], seg['opts'], seg["last_betas"], seg["op_adv"], seg["op_probs"], seg["activated_options"])[0]
-                adam.update(intgrads, intlr)
+            # Optimize interest functions
+            intgrads = intgrad(rollouts['ob'], rollouts['opts'], rollouts["last_betas"], rollouts["op_adv"], rollouts["op_probs"], rollouts["activated_options"])[0]
+            adam.update(intgrads, intlr)
 
-        opgrads = opgrad(seg['ob'], seg['opts'], seg["last_betas"], seg["op_adv"], seg["intfc"], seg["activated_options"])[0]
+        # Optimize policy over options
+        opgrads = opgrad(rollouts['ob'], rollouts['opts'], rollouts["last_betas"], rollouts["op_adv"], rollouts["intfc"], rollouts["activated_options"])[0]
         adam.update(opgrads, piolr)
-        data = {'seg': seg}
-        p.append(data)
-        pickle.dump(p, open("data/ioc_data_exp_7b.pkl", "wb"))
-        lrlocal = (seg["ep_lens"], seg["ep_rets"])  # local values
+
+        lrlocal = (rollouts["ep_lens"], rollouts["ep_rets"])  # local values
         listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal)  # list of tuples
         lens, rews = map(flatten_lists, zip(*listoflrpairs))
         lenbuffer.extend(lens)
         rewbuffer.extend(rews)
-        logger.record_tabular("SuccessInsertion", seg["success"])
+        logger.record_tabular("Success", rollouts["success"])
         logger.record_tabular("EpLenMean", np.mean(lenbuffer))
         logger.record_tabular("EpRewMean", np.mean(rewbuffer))
         logger.record_tabular("EpThisIter", len(lens))
@@ -436,6 +360,17 @@ def learn(env, model_path, policy_func, *,
         if MPI.COMM_WORLD.Get_rank() == 0:
             logger.dump_tabular()
 
+        # Save rollouts and model
+        print("Saving rollouts !! ")
+        data = {'rollouts': rollouts}
+        p.append(data)
+        del data
+        del rollouts
+        data_file_name = data_path + '/rollout_data.pkl'
+        pickle.dump(p, open(data_file_name, "wb"))
 
-def flatten_lists(listoflists):
-    return [el for list_ in listoflists for el in list_]
+        if model_path:
+            U.save_state(model_path + '/')
+            print("Policy saved in - ", model_path)
+
+

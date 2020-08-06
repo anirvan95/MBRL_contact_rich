@@ -27,11 +27,6 @@ def sample_trajectory(pi, model, env, iteration, horizon=150, rolloutSize=50, re
     else:
         env.setRender(False)
 
-    #if iteration > 20:
-    #    constraint = False
-    #else:
-    #    constraint = True
-
     constraint = False
     ac = env.action_space.sample()  # not used, just so we have the datatype
     new = True  # marks if we're on first timestep of an episode
@@ -72,8 +67,6 @@ def sample_trajectory(pi, model, env, iteration, horizon=150, rolloutSize=50, re
 
         # Step in the environment
         ob, rew, new, _ = env.step(ac)
-
-
         rews[sample_index] = rew
         curr_opt_duration += 1
         # check if current option is about to end in this state
@@ -92,9 +85,9 @@ def sample_trajectory(pi, model, env, iteration, horizon=150, rolloutSize=50, re
 
         cur_ep_ret += rew
         cur_ep_len += 1
-        dist = env.getGoalDist()
 
-        if np.linalg.norm(dist) < 0.05 and not successFlag:
+        dist = env.getGoalDist()
+        if np.linalg.norm(dist) < 0.005 and not successFlag:
             success = success + 1
             successFlag = True
 
@@ -206,7 +199,6 @@ def learn(env, model_path, data_path, policy_fn, model_learning_params, svm_grid
     # Define placeholders for computing the advantage
     ob = U.get_placeholder_cached(name="ob")
     option = U.get_placeholder_cached(name="option")
-    #des_option = U.get_placeholder(name="des_option", dtype=tf1.int32, shape=[None])
     ac = pi.pdtype.sample_placeholder([None])
 
     # Defining losses for optimization
@@ -227,7 +219,6 @@ def learn(env, model_path, data_path, policy_fn, model_learning_params, svm_grid
 
     var_list = pi.get_trainable_variables()
     lossandgrad = U.function([ob, ac, atarg, ret, lrmult, option], losses + [U.flatgrad(total_loss, var_list)])
-    # lossandgrad = U.function([ob, ac, atarg, ret, lrmult, option, des_option], losses + [U.flatgrad(total_loss, var_list)])
     adam = MpiAdam(var_list, epsilon=adam_epsilon)
 
     assign_old_eq_new = U.function([], [], updates=[tf1.assign(oldv, newv) for (oldv, newv) in
@@ -248,11 +239,11 @@ def learn(env, model_path, data_path, policy_fn, model_learning_params, svm_grid
 
     p = []  # for saving the rollouts
 
-    if retrain == True:
-        print("Retraining the model")
+    if retrain:
+        print("Retraining to New Task !!")
         time.sleep(2)
         U.load_state(model_path)
-        # model = pickle.load()
+        model = pickle.load(model_path)
 
     max_timesteps = int(horizon * rolloutSize * max_iters)
 
@@ -287,7 +278,7 @@ def learn(env, model_path, data_path, policy_fn, model_learning_params, svm_grid
         add_vtarg_and_adv(rollouts, pi, gamma, lam, num_options)
 
         ob, ac, opts, atarg, tdlamret = rollouts["seg_obs"], rollouts["seg_acs"], rollouts["des_opts"], rollouts["is_adv"], rollouts["tdlamret"]
-        old_opts  = rollouts["seg_opts"]
+        old_opts = rollouts["seg_opts"]
         similarity = 0
         for i in range(0, len(old_opts)):
             if old_opts[i] == opts[i]:

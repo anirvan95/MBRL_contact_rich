@@ -41,15 +41,15 @@ def obtainMode(env_id, point):
         elif Mode_13[0] <= point[0] <= Mode_13[2] and Mode_13[1] <= point[1] <= Mode_13[3]:
             hybrid_mode = 1
         elif Mode_21[0] <= point[0] <= Mode_21[2] and Mode_21[1] <= point[1] <= Mode_21[3]:
-            hybrid_mode = 1
+            hybrid_mode = 0
 
         return hybrid_mode
 
     elif env_id == 'BlockSlide2D-v1' or env_id == 'BlockSlide2Dc-v1' or env_id == 'BlockSlide2Dc-v2':
         box_size = 0.3
         bound = float(box_size / 2+0.001)
-        Mode_1 = [bound, 2, 0, bound]
-        Mode_2 = [0, bound, 0, 2]
+        Mode_1 = [bound, 1.5, 0, bound]
+        Mode_2 = [0, bound, 0, 1.5]
         hybrid_mode = 0
         if Mode_1[0] <= point[0] <= Mode_1[1] and Mode_1[2] <= point[1] <= Mode_1[3]:
             hybrid_mode = 1

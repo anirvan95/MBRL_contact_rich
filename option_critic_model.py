@@ -61,7 +61,7 @@ class MlpPolicy(object):
                                                     kernel_initializer=U.normc_initializer(1.0)))
 
         mean = dense3D2(last_out, pdtype.param_shape()[0] // 2, "polfinal", option, num_options=num_options,
-                        weight_init=U.normc_initializer(-0.5))
+                        weight_init=U.normc_initializer(-0.75))
         logstd = tf1.get_variable(name="logstd", shape=[num_options, 1, pdtype.param_shape()[0] // 2], initializer=U.normc_initializer(0.5), trainable=True)
         pdparam = tf1.concat([mean, mean * 0.0 + logstd[option[0]]], axis=1)
 

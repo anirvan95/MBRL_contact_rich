@@ -28,7 +28,7 @@ INIT = np.array([-0.25, 0.65])  # pos1
 # INIT = np.array([0.5, 0.3]) # pos3
 
 ACTION_SCALE = 1e-3
-STATE_SCALE = 10
+STATE_SCALE = 15
 EXPONENT_SCALE = 20
 
 

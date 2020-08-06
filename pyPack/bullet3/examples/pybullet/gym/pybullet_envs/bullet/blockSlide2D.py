@@ -27,10 +27,10 @@ logger = logging.getLogger(__name__)
 # Change environment configuration here
 '''
 GOAL = np.array([0.15, 0.15])
-INIT = np.array([0.45, 0.55, 0.15])
+INIT = np.array([0.5, 0.6, 0.15])
 
 ACTION_SCALE = 2e-2
-STATE_SCALE = 3
+STATE_SCALE = 15
 EXPONENT_SCALE = 10
 gForce = -4.9
 
@@ -80,7 +80,8 @@ class BlockSlide2DEnv(gym.Env):
         dist = pos - GOAL
         reward_dist = -STATE_SCALE * np.linalg.norm(dist)
         reward_ctrl = -ACTION_SCALE * np.square(action).sum()
-        reward = EXPONENT_SCALE*np.exp(reward_dist + reward_ctrl)
+        reward = reward_dist + reward_ctrl
+        #reward = EXPONENT_SCALE*np.exp(reward_dist + reward_ctrl)
 
         return np.array(self.state), reward, done, {}
 

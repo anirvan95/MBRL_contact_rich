@@ -87,7 +87,7 @@ class MlpPolicy(object):
 
     def act(self, stochastic, ob, option):
         ac1 = self._act(stochastic, ob[None], [option])
-        return ac1[0]
+        return ac1[0][0]
 
     def get_int_func(self, obs):
         return self._get_intfc(obs)[0]
