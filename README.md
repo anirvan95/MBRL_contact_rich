@@ -1,13 +1,13 @@
 # MBRL_contact_rich
 Repository for model based hierarchical reinforcement learning for contact rich task. Thesis work at KTH.
 
-# Installing dependencies for gpu support \
+# Installing dependencies for gpu support 
 Tested on CUDA10.1, Ubuntu18.04, Nvidia GTX1650 MaxQ \
 `sudo apt-get install nvidia-driver-440` \
 Follow instruction here - https://www.tensorflow.org/install/gpu
 
 
-# Installing dependencies \
+# Installing dependencies 
 `cd pyPack/gym`\
 `pip install -e .`\
 `cd ..`\
