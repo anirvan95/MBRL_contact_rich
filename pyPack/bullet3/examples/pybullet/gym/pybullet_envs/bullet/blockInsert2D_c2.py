@@ -26,7 +26,7 @@ GOAL = np.array([0, 0.5])  # change here
 INIT = np.array([-0.1, 0.7])  # Starting in mode 1, custom adaptation #2
 
 ACTION_SCALE = 1e-3
-STATE_SCALE = 4
+STATE_SCALE = 15
 EXPONENT_SCALE = 10
 
 
@@ -76,7 +76,7 @@ class BlockInsert2DEnvC2(gym.Env):
         reward_dist = -STATE_SCALE * np.linalg.norm(dist)
         reward_ctrl = -ACTION_SCALE * np.square(action).sum()
         reward = reward_dist + reward_ctrl
-        reward = EXPONENT_SCALE * np.exp(reward_dist + reward_ctrl)
+        #reward = EXPONENT_SCALE * np.exp(reward_dist + reward_ctrl)
 
         return np.array(self.state), reward, done, {}
 

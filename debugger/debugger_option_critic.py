@@ -1,5 +1,5 @@
 import tensorflow.compat.v1 as tf1
-import option_critic_model
+import moc_model
 import common.tf_util as U
 from model_learning import partialHybridModel
 import pickle
@@ -139,9 +139,9 @@ def sample_trajectory(pi, model, env, horizon=150, batch_size=12000, render=Fals
 
 
 def policy_fn(name, ob_space, ac_space, hybrid_model, num_options):
-    return option_critic_model.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space, hid_size=[32, 32, 32],
-                                         model=hybrid_model, num_options=num_options, num_hid_layers=[2, 2, 2],
-                                         term_prob=0.5, eps=0.001)
+    return moc_model.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space, hid_size=[32, 32, 32],
+                               model=hybrid_model, num_options=num_options, num_hid_layers=[2, 2, 2],
+                               term_prob=0.5, eps=0.001)
 
 
 def compute_likelihood(mean, std, ac):

@@ -18,19 +18,19 @@ import math
 tf1.disable_v2_behavior()
 
 
-def sample_trajectory(pi, model, env, iteration, horizon=150, rolloutSize=50, render=False):
+def sample_trajectory(pi, model, env, horizon=150, rolloutSize=50, render=False):
     """
-            Generates rollouts for policy optimization
+    Generates rollouts for policy optimization
     """
     if render:
         env.setRender(True)
     else:
         env.setRender(False)
 
-    constraint = False
     ac = env.action_space.sample()  # not used, just so we have the datatype
     new = True  # marks if we're on first timestep of an episode
     ob = env.reset()
+    cF = env.getContactForce()
     num_options = pi.num_options
     cur_ep_ret = 0  # return in current episode
     cur_ep_len = 0  # len of current episode
@@ -39,14 +39,15 @@ def sample_trajectory(pi, model, env, iteration, horizon=150, rolloutSize=50, re
     batch_size = int(horizon * rolloutSize)
     # Initialise history of arrays
     obs = np.array([ob for _ in range(batch_size)])
+    cFs = np.array([cF for _ in range(batch_size)])
     rews = np.zeros(batch_size, 'float32')
     news = np.zeros(batch_size, 'int32')
     opts = np.zeros(batch_size, 'int32')
     activated_options = np.zeros((batch_size, num_options), 'float32')
 
     acs = np.array([ac for _ in range(batch_size)])
-    model.currentMode = 0
-    option, active_options_t = pi.get_option(ob, constraint)
+    model.currentMode = env.mode
+    option, active_options_t = pi.get_option(ob)
 
     opt_duration = [[] for _ in range(num_options)]
     sample_index = 0
@@ -68,6 +69,8 @@ def sample_trajectory(pi, model, env, iteration, horizon=150, rolloutSize=50, re
         # Step in the environment
         ob, rew, new, _ = env.step(ac)
         rews[sample_index] = rew
+        cFs[sample_index] = env.getContactForce()
+        #print(cFs[sample_index])
         curr_opt_duration += 1
         # check if current option is about to end in this state
         nbeta = pi.get_tpred(ob)
@@ -81,7 +84,7 @@ def sample_trajectory(pi, model, env, iteration, horizon=150, rolloutSize=50, re
             opt_duration[option].append(curr_opt_duration)
             curr_opt_duration = 0.
             model.currentMode = model.getNextMode(ob)
-            option, active_options_t = pi.get_option(ob, constraint)
+            option, active_options_t = pi.get_option(ob)
 
         cur_ep_ret += rew
         cur_ep_len += 1
@@ -103,7 +106,8 @@ def sample_trajectory(pi, model, env, iteration, horizon=150, rolloutSize=50, re
             cur_ep_ret = 0
             cur_ep_len = 0
             ob = env.reset()
-            option, active_options_t = pi.get_option(ob, constraint)
+            model.currentMode = env.mode
+            option, active_options_t = pi.get_option(ob)
             successFlag = False
             new = True
 
@@ -113,7 +117,7 @@ def sample_trajectory(pi, model, env, iteration, horizon=150, rolloutSize=50, re
         print("Option: ", o, " - ", sum(opt_duration[o]))
 
     print("\n Maximum Reward this iteration: ", max(ep_rets), " \n")
-    rollouts = {"ob": obs, "rew": rews, "new": news, "ac": acs, "opts": opts, "ep_rets": ep_rets, "ep_lens": ep_lens, "opt_dur": opt_duration, "activated_options": activated_options, "success": success}
+    rollouts = {"ob": obs, "rew": rews, "new": news, "ac": acs, "opts": opts, "ep_rets": ep_rets, "ep_lens": ep_lens, "opt_dur": opt_duration, "activated_options": activated_options, "success": success, "contactF": cFs}
 
     return rollouts
 
@@ -133,7 +137,7 @@ def add_vtarg_and_adv(rollouts, pi, gamma, lam, num_options):
     u_sws = []
 
     for sample in range(0, len(obs)):
-        beta, vpred, op_vpred = pi.get_preds(obs[sample, :], False)
+        beta, vpred, op_vpred = pi.get_preds(obs[sample, :])
         vpred = np.squeeze(vpred)
         u_sw = (1 - beta) * vpred + beta * op_vpred
         betas.append(beta)
@@ -185,8 +189,12 @@ def learn(env, model_path, data_path, policy_fn, model_learning_params, svm_grid
 
     ob_space = env.observation_space
     ac_space = env.action_space
-
-    model = partialHybridModel(env, model_learning_params, svm_grid_params, svm_params_interest, svm_params_guard, horizon, modes, num_options, rolloutSize)
+    if retrain:
+        model = pickle.load(open(model_path + '/hybrid_model.pkl', 'rb'))
+        print("Model graph:", model.transitionGraph.nodes)
+        print("Model options:", model.transitionGraph.edges)
+    else:
+        model = partialHybridModel(env, model_learning_params, svm_grid_params, svm_params_interest, svm_params_guard, horizon, modes, num_options, rolloutSize)
     pi = policy_fn("pi", ob_space, ac_space, model, num_options)  # Construct network for new policy
     oldpi = policy_fn("oldpi", ob_space, ac_space, model, num_options)  # Network for old policy
     atarg = tf1.placeholder(dtype=tf1.float32, shape=[None])  # Target advantage function (if applicable)
@@ -242,9 +250,8 @@ def learn(env, model_path, data_path, policy_fn, model_learning_params, svm_grid
     if retrain:
         print("Retraining to New Task !!")
         time.sleep(2)
-        U.load_state(model_path)
-        model = pickle.load(model_path)
-
+        U.load_state(model_path+'/')
+        print(pi.eps)
     max_timesteps = int(horizon * rolloutSize * max_iters)
 
     while True:
@@ -259,11 +266,15 @@ def learn(env, model_path, data_path, policy_fn, model_learning_params, svm_grid
 
         logger.log("************* Iteration %i *************" % iters_so_far)
         print("Collecting samples for policy optimization !! ")
-        if iters_so_far > 70:
-            render = True
-        else:
-            render = False
-        rollouts = sample_trajectory(pi, model, env, iters_so_far, horizon=horizon, rolloutSize=rolloutSize, render=render)
+        render = False
+
+        rollouts = sample_trajectory(pi, model, env, horizon=horizon, rolloutSize=rolloutSize, render=render)
+        # Save rollouts
+        data = {'rollouts': rollouts}
+        p.append(data)
+        del data
+        data_file_name = data_path + '/rollout_data.pkl'
+        pickle.dump(p, open(data_file_name, "wb"))
 
         # Model update
         print("Updating model !!\n")
@@ -277,7 +288,7 @@ def learn(env, model_path, data_path, policy_fn, model_learning_params, svm_grid
         datas = [0 for _ in range(num_options)]
         add_vtarg_and_adv(rollouts, pi, gamma, lam, num_options)
 
-        ob, ac, opts, atarg, tdlamret = rollouts["seg_obs"], rollouts["seg_acs"], rollouts["des_opts"], rollouts["is_adv"], rollouts["tdlamret"]
+        ob, ac, opts, atarg, tdlamret = rollouts["seg_obs"], rollouts["seg_acs"], rollouts["des_opts"], rollouts["adv"], rollouts["tdlamret"]
         old_opts = rollouts["seg_opts"]
         similarity = 0
         for i in range(0, len(old_opts)):
@@ -345,19 +356,11 @@ def learn(env, model_path, data_path, policy_fn, model_learning_params, svm_grid
         if MPI.COMM_WORLD.Get_rank() == 0:
             logger.dump_tabular()
 
-        # Save rollouts and model
-        print("Saving rollouts !! ")
-        data = {'rollouts': rollouts}
-        p.append(data)
-        del data
-        del rollouts
-        data_file_name = data_path + '/rollout_data.pkl'
-        pickle.dump(p, open(data_file_name, "wb"))
-
-        if model_path:
+        '''
+        if model_path and not retrain:
             U.save_state(model_path + '/')
             model_file_name = model_path + '/hybrid_model.pkl'
             pickle.dump(model, open(model_file_name, "wb"), pickle.HIGHEST_PROTOCOL)
             print("Policy and Model saved in - ", model_path)
-
+        '''
     return pi, model

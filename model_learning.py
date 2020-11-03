@@ -14,7 +14,7 @@ class partialHybridModel(object):
         self.transitionGraph.add_node('goal')
         self.prevModes = len(list(self.transitionGraph.nodes))
         self.nOptions = 0
-        self.rejectedOptions = [[1, 0], [2, 1], [2, 0], [1, 2]]
+        self.rejectedOptions = [[1, 0], [2, 1], [2, 0]] # Add options to be rejected here
         self.transitionGraph.add_weighted_edges_from([(0, 'goal', self.nOptions)])
         self.env_id = env.unwrapped.spec.id
         self.preOptions = options
@@ -34,8 +34,11 @@ class partialHybridModel(object):
             self.dataset.append(deque(maxlen=model_learning_params['queueSize']))
 
     def updateModel(self, rollouts, pi):
+        # Learn modes via clustering
         # self.learnModes(rollouts)
+        # Learn pre-defined modes using user-defined mode regions
         self.learnPreDefModes(rollouts)
+
         self.learnTranstionRelation(rollouts, pi)
         self.learnGuardF()
         self.learnModeF()
@@ -83,7 +86,7 @@ class partialHybridModel(object):
         obs = rollouts['ob']
         acs = rollouts['ac']
         cFs = rollouts['contactF']
-        state_dim = obs.shape(1)
+        state_dim = obs.shape[1]
         segmented_traj = []
         segment_dynamics = []
         for rollout in range(0, train_rollouts):
@@ -245,6 +248,7 @@ class partialHybridModel(object):
                         des_opts.append(des_opts_seg[seg_count])
 
                 seg_count += 1
+
         self.des_opts_s = des_opts_seg
         rollouts['is'] = np.array(imp_samp)
         rollouts['des_opts'] = np.array(des_opts)
@@ -255,7 +259,9 @@ class partialHybridModel(object):
         rollouts['seg_news'] = seg_news
 
     def learnGuardF(self):
-
+        '''
+        Trains the probabilistic guard functions using dataset created during mode learning
+        '''
         x = []
         y = []
         if len(list(self.transitionGraph.nodes)) > 2:
@@ -274,6 +280,9 @@ class partialHybridModel(object):
                 self.guardFunction.train(X, Y, False)
 
     def learnModeF(self):
+        '''
+        Trains the deterministic mode functions using dataset created during mode learning
+        '''
         x = []
         y = []
         if len(list(self.transitionGraph.nodes)) > 2:
@@ -290,20 +299,20 @@ class partialHybridModel(object):
             else:
                 self.modeFunction.train(X, Y, False)
 
-    def getInterest(self, ob, sampling):
+    def getInterest(self, ob):
+        '''
+        Obtain interest function from the learned mode function
+        '''
         mode = self.currentMode
         self.intFunction = np.zeros(self.preOptions)
+        # When transition graph exists with subsequent child nodes
         if len(list(self.transitionGraph.nodes)) > 2:
             mode = self.modeFunction.predict([ob[0:2]])[0]
-            if sampling:
-                optionInd = self.transitionGraph[mode]['goal']['weight']
-                self.intFunction[optionInd] = 1
-            else:
-                nextModes = list(self.transitionGraph.successors(mode))
-                for i in range(0, len(nextModes)):
-                    if not [mode, nextModes[i]] in self.rejectedOptions:
-                        option = self.transitionGraph[mode][nextModes[i]]['weight']
-                        self.intFunction[option] = 1
+            nextModes = list(self.transitionGraph.successors(mode))
+            for i in range(0, len(nextModes)):
+                if not [mode, nextModes[i]] in self.rejectedOptions:
+                    option = self.transitionGraph[mode][nextModes[i]]['weight']
+                    self.intFunction[option] = 1
         else:
             # Only one mode discovered, should select only that option
             optionInd = self.transitionGraph[mode]['goal']['weight']

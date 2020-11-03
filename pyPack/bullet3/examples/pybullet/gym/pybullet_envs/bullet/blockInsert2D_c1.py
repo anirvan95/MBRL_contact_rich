@@ -23,7 +23,7 @@ from pkg_resources import parse_version
 logger = logging.getLogger(__name__)
 
 GOAL = np.array([0, 0.52])
-INIT = np.array([-0.3, 0.8])  # pos1
+INIT = np.array([-0.25, 0.65])  # pos1
 # INIT = np.array([0.0, -0.1]) # pos2
 
 ACTION_SCALE = 1e-3

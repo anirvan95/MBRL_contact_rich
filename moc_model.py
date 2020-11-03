@@ -61,8 +61,8 @@ class MlpPolicy(object):
                                                     kernel_initializer=U.normc_initializer(1.0)))
 
         mean = dense3D2(last_out, pdtype.param_shape()[0] // 2, "polfinal", option, num_options=num_options,
-                        weight_init=U.normc_initializer(-0.75))
-        logstd = tf1.get_variable(name="logstd", shape=[num_options, 1, pdtype.param_shape()[0] // 2], initializer=U.normc_initializer(0.5), trainable=True)
+                        weight_init=U.normc_initializer(-0.2))
+        logstd = tf1.get_variable(name="logstd", shape=[num_options, 1, pdtype.param_shape()[0] // 2], initializer=U.normc_initializer(0.1), trainable=True)
         pdparam = tf1.concat([mean, mean * 0.0 + logstd[option[0]]], axis=1)
 
         # pdparam = dense3D2(last_out, pdtype.param_shape()[0], "polfinal", option, num_options=num_options, weight_init=U.normc_initializer(-0.6))
@@ -82,15 +82,15 @@ class MlpPolicy(object):
         mean, std = self.action_pd(ob[None], [option])
         return mean[0], std[0]
 
-    def get_intfc(self, ob, constraint):
-        return self.model.getInterest(ob, constraint)
+    def get_intfc(self, ob):
+        return self.model.getInterest(ob)
 
     def get_tpred(self, ob):
         return self.model.getTermination(ob)
 
-    def get_preds(self, ob, constraint):
+    def get_preds(self, ob):
         beta = self.get_tpred(ob)
-        int_func = self.get_intfc(ob, constraint)
+        int_func = self.get_intfc(ob)
         # Get Q(s,w)
         vpred = []
         for opt in range(self.num_options):
@@ -101,8 +101,8 @@ class MlpPolicy(object):
 
         return beta, vpred, op_vpred
 
-    def get_option(self, ob, constraint):
-        int_func = self.get_intfc(ob, constraint)
+    def get_option(self, ob):
+        int_func = self.get_intfc(ob)
         activated_options = int_func
         vpred = []
         # max Q(s,w)

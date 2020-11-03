@@ -14,6 +14,10 @@ tf.disable_v2_behavior()
 
 
 def sample_trajectory(pi, env, horizon=150, rolloutSize=50, render=False):
+    if render:
+        env.setRender(True)
+    else:
+        env.setRender(False)
     ac = env.action_space.sample()  # not used, just so we have the datatype
     new = True  # marks if we're on first timestep of an episode
     ob = env.reset()
@@ -26,7 +30,6 @@ def sample_trajectory(pi, env, horizon=150, rolloutSize=50, render=False):
     # Initialize history arrays
     obs = np.array([ob for _ in range(batch_size)])
     rews = np.zeros(batch_size, 'float32')
-    realrews = np.zeros(batch_size, 'float32')
     news = np.zeros(batch_size, 'int32')
     opts = np.zeros(batch_size, 'int32')
     activated_options = np.zeros((batch_size, num_options), 'float32')
@@ -72,6 +75,9 @@ def sample_trajectory(pi, env, horizon=150, rolloutSize=50, render=False):
         activated_options[sample_index] = active_options_t
 
         ob, rew, new, _ = env.step(ac)
+        if render:
+            env.render()
+            time.sleep(0.0005)
         rews[sample_index] = rew
 
         curr_opt_duration += 1
@@ -95,14 +101,13 @@ def sample_trajectory(pi, env, horizon=150, rolloutSize=50, render=False):
         cur_ep_len += 1
 
         dist = env.getGoalDist()
-        if np.linalg.norm(dist) < 0.005 and not successFlag:
+        if np.linalg.norm(dist) < 0.02 and not successFlag:
             success = success + 1
             successFlag = True
 
         sample_index += 1
 
         if new or (sample_index > 0 and sample_index % horizon == 0):
-            render = False
             opt_duration[option].append(curr_opt_duration)
             curr_opt_duration = 0.
             ep_rets.append(cur_ep_ret)
@@ -115,6 +120,8 @@ def sample_trajectory(pi, env, horizon=150, rolloutSize=50, render=False):
             last_option = option
             new = True
             successFlag = False
+            render = False
+            env.setRender(False)
             term_prob = pi.get_tpred([ob], [option])[0][0]
 
     vpreds, op_vpreds, vpred, op_vpred, op_probs, intfc = pi.get_allvpreds(obs, ob)
@@ -269,7 +276,7 @@ def learn(env, model_path, data_path, policy_fn, *,
     if retrain:
         print("Retraining to New Task !! ")
         time.sleep(2)
-        U.load_state(model_path)
+        U.load_state(model_path+'/')
 
     p = []
     max_timesteps = int(horizon * rolloutSize * max_iters)
@@ -285,8 +292,15 @@ def learn(env, model_path, data_path, policy_fn, *,
             raise NotImplementedError
 
         logger.log("********** Iteration %i ************" % iters_so_far)
+        render = False
 
-        rollouts = sample_trajectory(pi, env, horizon=150, rolloutSize=50, render=False)
+        rollouts = sample_trajectory(pi, env, horizon=horizon, rolloutSize=rolloutSize, render=render)
+        # Save rollouts
+        data = {'rollouts': rollouts}
+        p.append(data)
+        del data
+        data_file_name = data_path + 'rollout_data.pkl'
+        pickle.dump(p, open(data_file_name, "wb"))
 
         add_vtarg_and_adv(rollouts, gamma, lam, num_options)
 
@@ -296,7 +310,6 @@ def learn(env, model_path, data_path, policy_fn, *,
             opt_d.append(dur)
 
         ob, ac, opts, atarg, tdlamret = rollouts["ob"], rollouts["ac"], rollouts["opts"], rollouts["adv"], rollouts["tdlamret"]
-        vpredbefore = rollouts["vpred"]  # predicted value function before udpate
         atarg = (atarg - atarg.mean()) / atarg.std()  # standardized advantage function estimate
 
         if hasattr(pi, "ob_rms"): pi.ob_rms.update(ob)  # update running mean/std for policy
@@ -360,17 +373,6 @@ def learn(env, model_path, data_path, policy_fn, *,
         if MPI.COMM_WORLD.Get_rank() == 0:
             logger.dump_tabular()
 
-        # Save rollouts and model
-        print("Saving rollouts !! ")
-        data = {'rollouts': rollouts}
-        p.append(data)
-        del data
-        del rollouts
-        data_file_name = data_path + '/rollout_data.pkl'
-        pickle.dump(p, open(data_file_name, "wb"))
-
-        if model_path:
-            U.save_state(model_path + '/')
-            print("Policy saved in - ", model_path)
+    return pi
 
 

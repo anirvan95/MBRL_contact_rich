@@ -13,7 +13,7 @@ from common.math_util import explained_variance, zipsame, flatten_lists
 import pickle
 
 
-def sample_trajectory(pi, env, horizon=150, rollouts=50, stochastic=True, render=False):
+def sample_trajectory(pi, env, horizon=150, rolloutSize=50, stochastic=True, render=False):
     sample_index = 0
     if render:
         env.setRender(True)
@@ -27,7 +27,7 @@ def sample_trajectory(pi, env, horizon=150, rollouts=50, stochastic=True, render
     cur_ep_len = 0  # len of current episode
     ep_rets = []  # returns of completed episodes in this segment
     ep_lens = []  # lengths of ...
-    batch_size = int(horizon * rollouts)
+    batch_size = int(horizon * rolloutSize)
     # Initialize history arrays
     obs = np.array([ob for _ in range(batch_size)])
     cFs = np.array([cF for _ in range(batch_size)])
@@ -63,7 +63,7 @@ def sample_trajectory(pi, env, horizon=150, rollouts=50, stochastic=True, render
         cur_ep_len += 1
 
         dist = env.getGoalDist()
-        if np.linalg.norm(dist) < 0.025 and not successFlag:
+        if np.linalg.norm(dist) < 0.04 and not successFlag:
             success = success + 1
             successFlag = True
 
@@ -83,31 +83,31 @@ def sample_trajectory(pi, env, horizon=150, rollouts=50, stochastic=True, render
 
     env.close()
     print("\n Maximum Reward this iteration: ", max(ep_rets), " \n")
-    seg = {"ob": obs, "rew": rews, "vpred": vpreds, "new": news, "ac": acs, "prevac": prevacs,
+    rollouts = {"ob": obs, "rew": rews, "vpred": vpreds, "new": news, "ac": acs, "prevac": prevacs,
            "nextvpred": vpred * (1 - new), "ep_rets": ep_rets, "ep_lens": ep_lens, "success": success, 'contactF': cFs}
-    return seg
+    return rollouts
 
 
-def add_vtarg_and_adv(seg, gamma, lam):
+def add_vtarg_and_adv(rollouts, gamma, lam):
     """
     Compute target value using TD(lambda) estimator, and advantage with GAE(lambda)
     """
-    new = np.append(seg["new"], 1)  # last element is only used for last vtarg, but we already zeroed it if last new = 1
-    vpred = np.append(seg["vpred"], seg["nextvpred"])
-    T = len(seg["rew"])
-    seg["adv"] = gaelam = np.empty(T, 'float32')
-    rew = seg["rew"]
+    new = np.append(rollouts["new"], 1)  # last element is only used for last vtarg, but we already zeroed it if last new = 1
+    vpred = np.append(rollouts["vpred"], rollouts["nextvpred"])
+    T = len(rollouts["rew"])
+    rollouts["adv"] = gaelam = np.empty(T, 'float32')
+    rew = rollouts["rew"]
     lastgaelam = 0
     for t in reversed(range(T)):
         nonterminal = 1 - new[t + 1]
         delta = rew[t] + gamma * vpred[t + 1] * nonterminal - vpred[t]
         gaelam[t] = lastgaelam = delta + gamma * lam * nonterminal * lastgaelam
-    seg["tdlamret"] = seg["adv"] + seg["vpred"]
+    rollouts["tdlamret"] = rollouts["adv"] + rollouts["vpred"]
 
 
 def learn(env, model_path, data_path, policy_fn, *,
           horizon=150,  # timesteps per actor per update
-          rollouts=50,
+          rolloutSize=50,
           clip_param=0.2, entcoeff=0.02,  # clipping parameter epsilon, entropy coeff
           optim_epochs=10, optim_stepsize=3e-4, optim_batchsize=32,  # optimization hypers
           gamma=0.99, lam=0.95,  # advantage estimation
@@ -171,7 +171,7 @@ def learn(env, model_path, data_path, policy_fn, *,
         print("Retraining the policy from saved path")
         time.sleep(2)
         U.load_state(model_path)
-    max_timesteps = int(horizon*rollouts*max_iters)
+    max_timesteps = int(horizon*rolloutSize*max_iters)
 
     while True:
         if max_iters and iters_so_far >= max_iters:
@@ -185,18 +185,21 @@ def learn(env, model_path, data_path, policy_fn, *,
 
         logger.log("********** Iteration %i ************" % iters_so_far)
         print("Collecting samples for policy optimization !! ")
-        render = False
-        seg = sample_trajectory(pi, env, horizon=horizon, rollouts=rollouts, stochastic=True, render=render)
-        data = {'seg': seg}
+        if iters_so_far > 70:
+            render = True
+        else:
+            render = False
+        rollouts = sample_trajectory(pi, env, horizon=horizon, rolloutSize=rolloutSize, stochastic=True, render=render)
+        # Save rollouts
+        data = {'rollouts': rollouts}
         p.append(data)
         del data
         data_file_name = data_path + 'rollout_data.pkl'
         pickle.dump(p, open(data_file_name, "wb"))
 
-        add_vtarg_and_adv(seg, gamma, lam)
+        add_vtarg_and_adv(rollouts, gamma, lam)
 
-        ob, ac, atarg, tdlamret = seg["ob"], seg["ac"], seg["adv"], seg["tdlamret"]
-        vpredbefore = seg["vpred"]  # predicted value function before udpate
+        ob, ac, atarg, tdlamret = rollouts["ob"], rollouts["ac"], rollouts["adv"], rollouts["tdlamret"]
         atarg = (atarg - atarg.mean()) / atarg.std()  # standardized advantage function estimate
         d = Dataset(dict(ob=ob, ac=ac, atarg=atarg, vtarg=tdlamret), deterministic=pi.recurrent)
         optim_batchsize = optim_batchsize or ob.shape[0]
@@ -214,12 +217,12 @@ def learn(env, model_path, data_path, policy_fn, *,
                 adam.update(g, optim_stepsize * cur_lrmult)
                 losses.append(newlosses)
 
-        lrlocal = (seg["ep_lens"], seg["ep_rets"])  # local values
+        lrlocal = (rollouts["ep_lens"], rollouts["ep_rets"])  # local values
         listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal)  # list of tuples
         lens, rews = map(flatten_lists, zip(*listoflrpairs))
         lenbuffer.extend(lens)
         rewbuffer.extend(rews)
-        logger.record_tabular("Success", seg["success"])
+        logger.record_tabular("Success", rollouts["success"])
         logger.record_tabular("EpLenMean", np.mean(lenbuffer))
         logger.record_tabular("EpRewMean", np.mean(rewbuffer))
         logger.record_tabular("EpThisIter", len(lens))

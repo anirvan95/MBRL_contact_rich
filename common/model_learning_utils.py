@@ -41,7 +41,7 @@ def obtainMode(env_id, point):
         elif Mode_13[0] <= point[0] <= Mode_13[2] and Mode_13[1] <= point[1] <= Mode_13[3]:
             hybrid_mode = 1
         elif Mode_21[0] <= point[0] <= Mode_21[2] and Mode_21[1] <= point[1] <= Mode_21[3]:
-            hybrid_mode = 0
+            hybrid_mode = 1
 
         return hybrid_mode
 
@@ -77,7 +77,6 @@ def obtainMode(env_id, point):
 
     else:
         print("Env not found, check!!")
-
 
 
 class multiDimGaussianProcess(object):

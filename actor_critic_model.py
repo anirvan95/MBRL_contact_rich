@@ -7,6 +7,7 @@ from common.distribution import DiagGaussianPdType
 
 class MlpPolicy(object):
     recurrent = False
+
     def __init__(self, name, *args, **kwargs):
         with tf.variable_scope(name):
             self._init(*args, **kwargs)
