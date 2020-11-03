@@ -1,13 +1,13 @@
 # MBRL_contact_rich
 Repository for model based hierarchical reinforcement learning for contact rich task. Thesis work at KTH.
 
-#Installing dependencies for gpu support
+# Installing dependencies for gpu support \
 Tested on CUDA10.1, Ubuntu18.04, Nvidia GTX1650 MaxQ \
 `sudo apt-get install nvidia-driver-440` \
 Follow instruction here - https://www.tensorflow.org/install/gpu
 
 
-#Installing dependencies
+# Installing dependencies \
 `cd pyPack/gym`\
 `pip install -e .`\
 `cd ..`\
@@ -17,7 +17,7 @@ Follow instruction here - https://www.tensorflow.org/install/gpu
 `cd ..`\
 `pip install -r requirements.txt`
 
-#Simulation environments
+# Simulation environments
 URDF's location: `pyPack/bullet3/examples/pybullet/gym/pybullet_data`\
 Environment scripts location: `pyPack/bullet3/examples/pybullet/gym/pybullet_envs/bullet`\
 Simulation enviroments names:\
@@ -30,7 +30,7 @@ Simulation enviroments names:\
 *2D Block Cornering with change in initial location* - 'BlockSlide2Dc-v2'\
 
 
-#Running experiments
+# Running experiments
 For base actor critic:\
 `python run_bac_policy.py --exp_path='provide experiment path'`
 
